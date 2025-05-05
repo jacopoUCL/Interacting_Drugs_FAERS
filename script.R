@@ -21,10 +21,10 @@ Indi <- Indi[primaryid %in% Demo$primaryid]
 Outc <- Outc[primaryid %in% Demo$primaryid]
 Ther <- Ther[primaryid %in% Demo$primaryid]
 
-# Selection of reports with at least one interacting drug
+# Selection of reports with at least one interacting drug -------------------------------------
 pids_inter <- Drug[role_cod %in% "I"]$primaryid
 
-# Count substance repetitions for reports with interacting drugs
+# Count substance repetitions for reports with interacting drugs -------------------------------------
 Drug_inter <- Drug[role_cod %in% "I"]
 Drug_inter_count <- Drug_inter[, .N, by = .(substance)]
 Drug_inter_count <- Drug_inter_count[!substance %in% NA]
@@ -38,10 +38,12 @@ kable(Drug_inter_count[order(-N)][1:10,], format = "html", caption = "Count of d
   row_spec(1:10, background = "#F6F6F6")
 
 
-# Descriptive for the ost reported interacting drugs
-
-
-
+# Descriptive for the most reported interacting drugs -------------------------------------
+descriptive(pids_cases = pids_inter, drug = "warfarin", file_name = "Descriptive_warfarin.xlsx")
+descriptive(pids_cases = pids_inter, drug = "tacrolimus", file_name = "Descriptive_tacrolimus.xlsx")
+descriptive(pids_cases = pids_inter, drug = "acetylsalicylic acid", file_name = "Descriptive_acetylsalicylic_acid.xlsx")
+descriptive(pids_cases = pids_inter, drug = "quetiapine", file_name = "Descriptive_quetiapine.xlsx")
+descriptive(pids_cases = pids_inter, drug = "valproic acid", file_name = "Descriptive_valproic_acid.xlsx")
 
 
 
