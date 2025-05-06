@@ -22,12 +22,11 @@ Outc <- Outc[primaryid %in% Demo$primaryid]
 Ther <- Ther[primaryid %in% Demo$primaryid]
 
 # Selection of reports with at least one interacting drug -------------------------------------
-pids_inter <- Drug[role_cod %in% "I"]$primaryid
+pids_inter <- Drug[role_cod == "I"]$primaryid
 
 # Count substance repetitions for reports with interacting drugs -------------------------------------
-Drug_inter <- Drug[role_cod %in% "I"]
-Drug_inter_count <- Drug_inter[, .N, by = .(substance)]
-Drug_inter_count <- Drug_inter_count[!substance %in% NA]
+Drug_inter <- Drug[role_cod == "I"]
+Drug_inter_count <- Drug_inter[!is.na(substance), .N, by= .(substance)][order(-N)]
 
 kable(Drug_inter_count[order(-N)][1:10,], format = "html", caption = "Count of drugs reported as interacting") %>%
   kable_styling("striped", full_width = F) %>%
