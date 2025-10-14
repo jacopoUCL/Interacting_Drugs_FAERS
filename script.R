@@ -13,6 +13,10 @@ library(ggplot2)
 library(scales)
 library(patchwork)
 library(openxlsx)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tibble)
 
 # DiAna setup -----
 FAERS_version <- "24Q4"
@@ -239,18 +243,6 @@ Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substanc
 Drug_inter_count <- Drug_inter_count[1:10, ]
 write.xlsx(Drug_inter_count, file = "results/Most_reported_interacting_drugs.xlsx")
 
-# Descriptive for the most reported interacting drugs --------------------------
-descriptive(pids_cases = pids_inter, drug = "warfarin", file_name = "results/Descriptive_warfarin.xlsx")
-descriptive(pids_cases = pids_inter, drug = "tacrolimus", file_name = "results/Descriptive_tacrolimus.xlsx")
-descriptive(pids_cases = pids_inter, drug = "acetylsalicylic acid", file_name = "results/Descriptive_acetylsalicylic_acid.xlsx")
-descriptive(pids_cases = pids_inter, drug = "quetiapine", file_name = "results/Descriptive_quetiapine.xlsx")
-descriptive(pids_cases = pids_inter, drug = "valproic acid", file_name = "results/Descriptive_valproic_acid.xlsx")
-descriptive(pids_cases = pids_inter, drug = "rivaroxaban", file_name = "results/Descriptive_rivaroxaban.xlsx")
-descriptive(pids_cases = pids_inter, drug = "paracetamol", file_name = "results/Descriptive_paracetamol.xlsx")
-descriptive(pids_cases = pids_inter, drug = "ritonavir", file_name = "results/Descriptive_ritonavir.xlsx")
-descriptive(pids_cases = pids_inter, drug = "clozapine", file_name = "results/Descriptive_clozapine.xlsx")
-descriptive(pids_cases = pids_inter, drug = "furosemide", file_name = "results/Descriptive_furosemide_acid.xlsx")
-
 # Bivariate descriptive analysis of the selected reports (???) ----------------
 
 # Convert the excel in a list of dataframes
@@ -416,6 +408,39 @@ ratios_summary <- data.frame(
 most_reported <- merge(Drug_inter_count, ratios_summary, by = "substance")
 
 
+
+# Descriptive for the most reported interacting drugs --------------------------
+descriptive(pids_cases = pids_1_inter, drug = "warfarin", file_name = "results/Descriptive_warfarin.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_2_inter, drug = "tacrolimus", file_name = "results/Descriptive_tacrolimus.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_3_inter, drug = "acetylsalicylic acid", file_name = "results/Descriptive_acetylsalicylic_acid.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_4_inter, drug = "quetiapine", file_name = "results/Descriptive_quetiapine.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_5_inter, drug = "valproic acid", file_name = "results/Descriptive_valproic_acid.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_6_inter, drug = "rivaroxaban", file_name = "results/Descriptive_rivaroxaban.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_7_inter, drug = "paracetamol", file_name = "results/Descriptive_paracetamol.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_8_inter, drug = "ritonavir", file_name = "results/Descriptive_ritonavir.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_9_inter, drug = "clozapine", file_name = "results/Descriptive_clozapine.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+descriptive(pids_cases = pids_10_inter, drug = "furosemide", file_name = "results/Descriptive_furosemide_acid.xlsx", 
+            vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
+                     "Indications", "Substances", "role_cod", "time_to_onset", "year"))
+
 ## ADR -----
 # Count ADR repetitions for interacting drugs ---------------------
 Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
@@ -437,7 +462,7 @@ react_count <- list(react_count_1, react_count_2, react_count_3, react_count_4, 
                    react_count_6, react_count_7, react_count_8, react_count_9, react_count_10)
 
 for (i in 1:10) { 
-  colnames(react_count[[i]]) <- c(as.character(Drug_inter_count$substance[i]), "N") 
+  colnames(react_count[[i]]) <- c("substance", "N")
   }
 
 react_count_unique <- bind_rows(react_count)
@@ -556,6 +581,58 @@ for (i in seq_along(non_int_list_all)) {
 }
 saveWorkbook(wb, "results/non_interacting_drugs.xlsx", overwrite = TRUE)
 
+# Most reported indications for most reported interacting drugs -----
+Drug_u <- unique(Drug[primaryid %in% pids_inter], by = "primaryid")
+Indi_u <- unique(Indi[primaryid %in% pids_inter], by = "primaryid")
+temp <- merge(Drug_u, Indi_u, by = "primaryid", nomatch = 0L)
+
+indi_war <- temp[role_cod == "I" & substance == as.character(int_data$substance[1])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_tac <- temp[role_cod == "I" & substance == as.character(int_data$substance[2])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_ace <- temp[role_cod == "I" & substance == as.character(int_data$substance[3])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_que <- temp[role_cod == "I" & substance == as.character(int_data$substance[4])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_val <- temp[role_cod == "I" & substance == as.character(int_data$substance[5])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_riv <- temp[role_cod == "I" & substance == as.character(int_data$substance[6])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_par <- temp[role_cod == "I" & substance == as.character(int_data$substance[7])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_rit <- temp[role_cod == "I" & substance == as.character(int_data$substance[8])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_clo <- temp[role_cod == "I" & substance == as.character(int_data$substance[9])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+indi_fur <- temp[role_cod == "I" & substance == as.character(int_data$substance[10])][,c(1,6)][, .N, by= .(indi_pt)][order(-N)][1:3,]
+
+int_indi <- list(indi_war, indi_tac, indi_ace, indi_que, indi_val, 
+                 indi_riv, indi_par, indi_rit, indi_clo, indi_fur)
+names(int_indi) <- int_data$substance
+
+# save
+wb <- createWorkbook()
+addWorksheet(wb, "Indications")
+row_counter <- 1
+drug_names <- names(int_indi)
+for (i in seq_along(int_indi)) {
+  # Write drug name
+  writeData(wb, "Indications", paste("Drug:", drug_names[i]), startRow = row_counter, startCol = 1)
+  row_counter <- row_counter + 1
+  
+  dt <- int_indi[[i]]
+  if (is.null(dt) || nrow(dt) == 0) {
+    row_counter <- row_counter + 1
+    next
+  }
+  
+  # Ensure nice output: convert factor to character and sort by N desc
+  out <- as.data.frame(dt)
+  out$indi_pt <- as.character(out$indi_pt)
+  out <- out[order(out$N, decreasing = TRUE), , drop = FALSE]
+  
+  # Write the table
+  writeData(wb, "Indications", out, startRow = row_counter, startCol = 1, withFilter = TRUE)
+  
+  # Optional: auto width for the two columns just written
+  setColWidths(wb, "Indications", cols = 1:ncol(out), widths = "auto")
+  
+  # Advance the row counter (+2 for spacing)
+  row_counter <- row_counter + nrow(out) + 2
+}
+saveWorkbook(wb, "results/Most_reported_interacfting_drugs_most_reported_indications.xlsx", overwrite = TRUE)
+
 # Plot for interacting drugs by classes -----
 atc_inter <- ATC[substance %in% Drug_inter_count$substance]
 atc_inter_drug <- left_join(Drug_inter_count, atc_inter,  by = "substance")
@@ -641,11 +718,141 @@ ggplot(atc_inter_drug_c2_ant, aes(x = reorder(Class2, -N), y = N)) +
 # and so on ...
 
 
+# Plot trend for most reported interacting drugs -----
+int_data <- read_excel("results/Most_reported_interacting_drugs.xlsx")
+years_ <- function(path = NA) {
+  d <- read_excel(path)
+  d <- t(d)
+  colnames(d) <- d[1,]
+  d <- as.data.frame(d)[-c(1,3), (ncol(d)-15):ncol(d)]
+  d <- as.data.frame(t(d))
+  colnames(d) <- "N"
+  return(d)
+}
+data_war <- years_("results/Descriptive_warfarin.xlsx")
+data_tac <- years_("results/Descriptive_tacrolimus.xlsx")
+data_ace <- years_("results/Descriptive_acetylsalicylic_acid.xlsx")
+data_que <- years_("results/Descriptive_quetiapine.xlsx")
+data_val <- years_("results/Descriptive_valproic_acid.xlsx")
+data_riv <- years_("results/Descriptive_rivaroxaban.xlsx")
+data_par <- years_("results/Descriptive_paracetamol.xlsx")
+data_rit <- years_("results/Descriptive_ritonavir.xlsx")
+data_clo <- years_("results/Descriptive_clozapine.xlsx")
+data_fur <- years_("results/Descriptive_furosemide_acid.xlsx")
+
+df <- cbind(data_war, data_tac, data_ace, data_que, data_val, 
+            data_riv, data_par, data_rit, data_clo, data_fur)
+colnames(df) <- int_data$substance
+
+df <- df %>%
+  rownames_to_column(var = "year")
+df$year <- as.numeric(df$year)
+
+df_long <- df %>%
+  pivot_longer(
+    cols = -year,
+    names_to = "drug",
+    values_to = "value"
+  ) %>%
+  mutate(value = as.numeric(value))
+
+ggplot(df_long, aes(x = year, y = value, color = drug, group = drug)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Drug values over years",
+    x = "Year",
+    y = "Value",
+    color = "Drug"
+  ) +
+  scale_x_continuous(
+    breaks = unique(df_long$year)
+  ) +
+  theme(
+    legend.position = "right",
+    # Axis titles
+    axis.title.x = element_text(size = 18, face = "bold"),
+    axis.title.y = element_text(size = 18, face = "bold"),
+    # Axis tick labels
+    axis.text.x = element_text(size = 14, face = "bold", angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 14, face = "bold"),
+    # Legend
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.text = element_text(size = 14, face = "bold"),
+    # Plot title
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5)
+  )
+
 #####
 
 # Omega -----
+# Most reported couples of drugs -----
+## for the most reported interacting drugs -----
+pids_most_int <- list(pids_1_inter, pids_2_inter, pids_3_inter, pids_4_inter, pids_5_inter, 
+                      pids_6_inter, pids_7_inter, pids_8_inter, pids_9_inter, pids_10_inter)
+roles <- c("PS", "SS", "C")
+tpl <- data.frame(PS = I(list(NULL)),
+                  SS = I(list(NULL)),
+                  C  = I(list(NULL)))
+df_list <- replicate(10, tpl, simplify = FALSE)
 
-#####
+for (i in seq_along(pids_most_int)) {
+  for (j in seq_along(roles)) {
+    res <- Drug[primaryid %in% pids_most_int[[i]] & substance != int_data$substance[i] & role_cod == roles[j], .N, by = .(substance)][order(-N)]
+    if (nrow(res)) res <- res[seq_len(min(10, nrow(res)))]
+    df_list[[i]][[roles[j]]] <- list(res)
+  }
+}
+
+names(df_list) <- int_data$substance
+names(react_count) <- int_data$substance
+df_list$warfarin$PS
+react_count$warfarin
+
+# Omega application -----
+library(komega)
+indications <- as.data.frame(read_excel("results/Most_reported_interacfting_drugs_most_reported_indications.xlsx"))
+
+# Warfarine
+indi <- indications[2:4, 1]
+## Atrial fibrillation                 
+### Anaemia
+#### PS
+reac <- as.character(react_count$warfarin[4,1])
+drug1_ <- names(df_list)[1]
+drug2_ <- as.character(c(as.data.frame(df_list$warfarin$PS)$substance))
+drugs_df_1 <- data.frame(
+  drug1 = drug1_,
+  drug2 = drug2_
+)
+
+o_war_anemia_ps <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (PS)", indication = indi[1])
+
+#### SS
+reac <- as.character(react_count$warfarin[4,1])
+drug1_ <- names(df_list)[1]
+drug2_ <- as.character(c(as.data.frame(df_list$warfarin$SS)$substance))
+drugs_df_1 <- data.frame(
+  drug1 = drug1_,
+  drug2 = drug2_
+)
+
+o_war_anemia_ss <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (SS)", indication = indi[1])
+
+#### C
+reac <- as.character(react_count$warfarin[4,1])
+drug1_ <- names(df_list)[1]
+drug2_ <- as.character(c(as.data.frame(df_list$warfarin$C)$substance))
+drugs_df_1 <- data.frame(
+  drug1 = drug1_,
+  drug2 = drug2_
+)
+
+o_war_anemia_c <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (C)", indication = indi[1])
+
+## Anticoagulant therapy
+# ...
 
 #######
 
