@@ -216,6 +216,7 @@ p1 / p2 + plot_layout(heights = c(1, 1.2)) +
   plot_annotation(title = "Reports by number of reported drugs", 
                   subtitle = "(1986-2024)")
 
+## Plot only roles trend per numbers of reported drugs
 ggplot(bars_2, aes(x = total_drugs, y = perc, 
                    group = role_cod, color = role_cod)) +
   geom_line(linewidth = 1.2) +
@@ -225,6 +226,7 @@ ggplot(bars_2, aes(x = total_drugs, y = perc,
   scale_y_continuous(breaks = seq(0, 60, by = 5),
                      limits = c(0, 60)) +
   labs(title = "Percentages by drug role per number of reported drugs",
+       subtitle = "Reports with at least one interacting drug (I)",
        x = "Number of drugs (PS or SS or I or C)",
        y = "% by drug role", color = "Drug role") +
   scale_color_manual(values = c("I" = "steelblue", 
@@ -238,7 +240,7 @@ ggplot(bars_2, aes(x = total_drugs, y = perc,
 # Descriptive - all data -----
 descriptive(pids_inter, file_name = "results/Descriptive_all_data.xlsx")
   
-# Most rreported interacting drugs -----
+# Most reported interacting drugs -----
 Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
 Drug_inter_count <- Drug_inter_count[1:10, ]
 write.xlsx(Drug_inter_count, file = "results/Most_reported_interacting_drugs.xlsx")
@@ -812,22 +814,176 @@ react_count$warfarin
 
 # Omega application -----
 library(komega)
-indications <- as.data.frame(read_excel("results/Most_reported_interacfting_drugs_most_reported_indications.xlsx"))
+# Select the mrid and then only the reports with the most frequent "number of reported drugs"
+most_rep_comb <- function(top_drug = 1, top_reac = 10, top_indi = 10, 
+                          top_c = 1, roles = NULL, verbose = FALSE, 
+                          merge_reac = NA, merge_indi = NA) {
+  
+  stopifnot(exists("Drug"), exists("Indi"), exists("Reac"))
+  stopifnot(data.table::is.data.table(Drug), data.table::is.data.table(Indi), data.table::is.data.table(Reac), 
+            !is.na(top_reac), !is.na(top_indi), !is.na(top_drug), !is.na(top_c), 
+            top_reac >= 0, top_indi >= 0, top_drug >= 0, top_c >= 0, 
+            !is.null(top_reac), !is.null(top_indi), !is.null(top_drug), !is.null(top_c))
+  
+  # Setup dfs
+  Drug_u <- Drug[role_cod == "I" & !is.na(substance)]
+  
+  Reac_u <- Reac[, .N, by = .(pt)][order(-N)]
+  reac <- as.character(Reac_u$pt[1:min(top_reac, nrow(Reac_u))])
+  
+  Indi_u <- Indi[, .N, by = .(indi_pt)][order(-N)]
+  indi <- as.character(Indi_u$indi_pt[1:min(top_indi, nrow(Indi_u))])
+  
+  # Filter to suspect drugs & optional indication / reaction ----------------
+  if (!is.na(merge_reac)) {Drug_u <- merge(Drug_u, Reac,  by = "primaryid")[pt == reac[1]]}
+  if (!is.na(merge_indi)) {Drug_u <- merge(Drug_u, Indi, by = "primaryid")[indi_pt == indi[1]]}
+  
+  # Count suspect substances and pick the requested top_drug ----------------------
+  Drug_u <- Drug_u[, .N, by = .(substance)][order(-N)]
+  if (nrow(Drug_u) == 0L) {
+    if (verbose) message("No rows after filters; returning empty result.")
+    return(data.table::data.table(combo = character(), N = integer(), perc = numeric()))
+  }
+  
+  # Safe index for top_drug
+  top_drug <- max(1L, min(top_drug, nrow(Drug_u)))
+  top1_substance <- as.character(Drug_u$substance[top_drug])
+  
+  if (verbose) {
+    print(Drug_u[1:min(5L, .N)])
+    message("Top-1 substance selected: ", top1_substance)
+  }
+  
+  # Get all primaryids having that top-1 substance as suspect (within pids_inter)
+  pids_top1 <- Drug[role_cod == "I" & substance == top1_substance, unique(primaryid)]
+  if (length(pids_top1) == 0L) {
+    if (verbose) message("No primaryids for top-1 substance; returning empty result.")
+    return(data.table::data.table(combo = character(), N = integer(), perc = numeric()))
+  }
+  
+  # Build unique (primaryid, substance, role_cod) for those cases -----------
+  DT_unique <- unique(
+    Drug[primaryid %in% pids_top1 & !is.na(role_cod),
+         .(primaryid, substance = as.character(substance), role_cod)]
+  )
+  
+  # Optional role filter (now actually applied)
+  if (!is.null(roles)) {
+    DT_unique <- DT_unique[role_cod %in% roles]
+  }
+  
+  # If everything got filtered out, exit early
+  if (nrow(DT_unique) == 0L) {
+    if (verbose) message("No drugs left after role filter; returning empty result.")
+    return(data.table::data.table(combo = character(), N = integer(), perc = numeric()))
+  }
+  
+  # Count unique drugs per primaryid, get the mode size ranking -------------
+  drug_counts <- DT_unique[, .(total_drugs = data.table::uniqueN(substance)), by = primaryid]
+  
+  tab_top1 <- drug_counts[, .N, by = total_drugs][order(-N, -total_drugs)]
+  tab_top1[, perc := round(100 * N / sum(N), 1)]
+  if (verbose) print(tab_top1[1:min(5L, .N)])
+  
+  # Choose the top_c-th entry in that ranking safely
+  top_c <- max(1L, min(top_c, nrow(tab_top1)))
+  mode_size <- tab_top1[top_c, total_drugs]
+  
+  # Focus on cases with that size ------------------------------------------
+  pids_mode <- drug_counts[total_drugs == mode_size, primaryid]
+  if (length(pids_mode) == 0L) {
+    if (verbose) message("No primaryids with the selected mode size; returning empty result.")
+    return(data.table::data.table(combo = character(), N = integer(), perc = numeric()))
+  }
+  
+  # Build the "combination" label (sorted, unique) that CONTAINS top1 -------
+  # Since 'mode_size' equals the number of unique drugs in those cases,
+  # the "combination of size k" is just the set itself; no need for combn().
+  combo_labels <- DT_unique[primaryid %in% pids_mode, .(combo = {
+    subs <- sort(unique(substance))
+    if (length(subs) == mode_size && top1_substance %in% subs) {
+      paste(subs, collapse = " + ")
+    } else {NA_character_}}), by = primaryid][!is.na(combo)]
+  
+  if (nrow(combo_labels) == 0L) {
+    if (verbose) message("No valid combinations found; returning empty result.")
+    return(data.table::data.table(combo = character(), N = integer(), perc = numeric()))
+  }
+  
+  # Count combinations and add percentages ---------------------------------
+  combo_counts <- combo_labels[, .N, by = combo][order(-N, combo)]
+  combo_counts[, perc := round(100 * N / sum(N), 1)]
+  data.table::setcolorder(combo_counts, c("combo", "N", "perc"))
+  
+  # Optional summary messages ----------------------------------------------
+  if (verbose) {
+    msg <- paste0(
+      if (!is.null(indi)) paste0("\nIndication: ", indi) else "",
+      if (!is.null(reac)) paste0("\nADR: ", reac) else "",
+      "\nTop-1 substance: ", top1_substance,
+      "\nChosen regimen size (top_2): ", mode_size, "\n"
+    )
+    message(msg)
+    print(combo_counts[1:min(10L, .N)])
+  }
+  
+  # Return result with a couple of attributes for convenience
+  attr(combo_counts, "top1_substance") <- top1_substance
+  attr(combo_counts, "mode_size") <- mode_size
+  return(list("top_comb" = combo_counts, "top_drugs" = Drug_u, 
+              "top_quant" = tab_top1, "reac" = data.frame("reac" = reac), 
+              "indi" = data.frame("indi" = indi)))
+}
+make_df <- function(comb, n_rows = NULL) {
+  # anchor drug (first cell of top_drugs)
+  drug1_ <- as.character(comb$top_drugs$substance[1])
+  d1_norm <- tolower(trimws(drug1_))
+  
+  # choose rows (all by default)
+  combo_vector <- comb$top_comb$combo
+  if (!is.null(n_rows)) combo_vector <- head(combo_vector, n_rows)
+  
+  # split combos on '+', trim, and drop empties
+  split_list <- strsplit(combo_vector, "\\s*\\+\\s*")
+  split_list <- lapply(split_list, function(v) {
+    v <- trimws(v)
+    v[nzchar(v)]
+  })
+  
+  # remove **all** occurrences of drug1_, case-insensitive
+  others <- lapply(split_list, function(v) v[tolower(trimws(v)) != d1_norm])
+  
+  # determine max number of remaining drugs to define columns drug2..drugk
+  max_len <- if (length(others)) max(lengths(others)) else 0L
+  
+  # pad each row to max_len with NA, preserving order
+  padded <- lapply(others, function(v) { length(v) <- max_len; v })
+  if (max_len == 0L) {
+    # no others anywhere: return a 1-col df with just drug1
+    return(data.frame(drug1 = rep(drug1_, length(others)), stringsAsFactors = FALSE))
+  }
+  
+  mat <- do.call(rbind, padded)
+  df <- data.frame(drug1 = rep(drug1_, nrow(mat)), mat, stringsAsFactors = FALSE)
+  colnames(df) <- c("drug1", paste0("drug", 2:(max_len + 1)))
+  df
+}
 
-# Warfarine
-indi <- indications[2:4, 1]
+# Warfarin
+comb <- most_rep_comb()
+comb$top_comb
+comb$top_drugs
+comb$top_quant
+comb$reac
+comb$indi
 ## Atrial fibrillation                 
 ### Anaemia
 #### PS
-reac <- as.character(react_count$warfarin[4,1])
-drug1_ <- names(df_list)[1]
-drug2_ <- as.character(c(as.data.frame(df_list$warfarin$PS)$substance))
-drugs_df_1 <- data.frame(
-  drug1 = drug1_,
-  drug2 = drug2_
-)
+reac <- comb$reac$reac[2]
+indi <- comb$indi$indi[2]
+drugs_df <- make_df(comb, n_rows = 10)
 
-o_war_anemia_ps <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (PS)", indication = indi[1])
+o_war_anemia_ps <- komega(drugs = drugs_df, reactions = reac, title_reac = "Anaemia (PS)", indication = indi)
 
 #### SS
 reac <- as.character(react_count$warfarin[4,1])
@@ -853,6 +1009,8 @@ o_war_anemia_c <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Ana
 
 ## Anticoagulant therapy
 # ...
+
+
 
 #######
 
