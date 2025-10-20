@@ -817,7 +817,7 @@ library(komega)
 # Select the mrid and then only the reports with the most frequent "number of reported drugs"
 most_rep_comb <- function(top_drug = 1, top_reac = 10, top_indi = 10, 
                           top_c = 1, roles = NULL, verbose = FALSE, 
-                          merge_reac = NA, merge_indi = NA) {
+                          merge_reac = FALSE, merge_indi = FALSE) {
   
   stopifnot(exists("Drug"), exists("Indi"), exists("Reac"))
   stopifnot(data.table::is.data.table(Drug), data.table::is.data.table(Indi), data.table::is.data.table(Reac), 
@@ -829,14 +829,14 @@ most_rep_comb <- function(top_drug = 1, top_reac = 10, top_indi = 10,
   Drug_u <- Drug[role_cod == "I" & !is.na(substance)]
   
   Reac_u <- Reac[, .N, by = .(pt)][order(-N)]
-  reac <- as.character(Reac_u$pt[1:min(top_reac, nrow(Reac_u))])
+  reac <- as.character(Reac_u$pt[1:min(10, nrow(Reac_u))])
   
   Indi_u <- Indi[, .N, by = .(indi_pt)][order(-N)]
-  indi <- as.character(Indi_u$indi_pt[1:min(top_indi, nrow(Indi_u))])
+  indi <- as.character(Indi_u$indi_pt[1:min(10, nrow(Indi_u))])
   
   # Filter to suspect drugs & optional indication / reaction ----------------
-  if (!is.na(merge_reac)) {Drug_u <- merge(Drug_u, Reac,  by = "primaryid")[pt == reac[1]]}
-  if (!is.na(merge_indi)) {Drug_u <- merge(Drug_u, Indi, by = "primaryid")[indi_pt == indi[1]]}
+  if (merge_reac) {Drug_u <- merge(Drug_u, Reac,  by = "primaryid")[pt == reac[top_reac]]}
+  if (merge_indi) {Drug_u <- merge(Drug_u, Indi, by = "primaryid")[indi_pt == indi[top_indi]]}
   
   # Count suspect substances and pick the requested top_drug ----------------------
   Drug_u <- Drug_u[, .N, by = .(substance)][order(-N)]
@@ -888,6 +888,11 @@ most_rep_comb <- function(top_drug = 1, top_reac = 10, top_indi = 10,
   # Choose the top_c-th entry in that ranking safely
   top_c <- max(1L, min(top_c, nrow(tab_top1)))
   mode_size <- tab_top1[top_c, total_drugs]
+  if (mode_size < 2) {
+    top_c = top_c + 1
+    mode_size <- tab_top1[top_c, total_drugs]
+  }
+  
   
   # Focus on cases with that size ------------------------------------------
   pids_mode <- drug_counts[total_drugs == mode_size, primaryid]
@@ -934,9 +939,9 @@ most_rep_comb <- function(top_drug = 1, top_reac = 10, top_indi = 10,
               "top_quant" = tab_top1, "reac" = data.frame("reac" = reac), 
               "indi" = data.frame("indi" = indi)))
 }
-make_df <- function(comb, n_rows = NULL) {
+make_df <- function(comb, n_rows = NULL, top_drug = 1) {
   # anchor drug (first cell of top_drugs)
-  drug1_ <- as.character(comb$top_drugs$substance[1])
+  drug1_ <- as.character(comb$top_drugs$substance[top_drug])
   d1_norm <- tolower(trimws(drug1_))
   
   # choose rows (all by default)
@@ -970,47 +975,40 @@ make_df <- function(comb, n_rows = NULL) {
 }
 
 # Warfarin
-comb <- most_rep_comb()
-comb$top_comb
-comb$top_drugs
-comb$top_quant
-comb$reac
-comb$indi
 ## Atrial fibrillation                 
 ### Anaemia
 #### PS
+comb <- most_rep_comb(top_c = 2, top_drug = 2)
+comb$top_comb
+comb$top_drugs
+comb$top_quant
+reac <- comb$reac$reac[2]
+indi <- comb$indi$indi[2]
+drugs_df <- make_df(comb, n_rows = 10, top_drug = 2)
+
+o_war_anemia_ps <- komega(drugs = drugs_df, reactions = reac, title_reac = "Nausea (PS)", indication = indi)
+
+#### SS
+comb <- most_rep_comb(merge_reac = T, merge_indi = T, top_reac = 2, top_indi = 2, roles = c("SS"))
 reac <- comb$reac$reac[2]
 indi <- comb$indi$indi[2]
 drugs_df <- make_df(comb, n_rows = 10)
 
-o_war_anemia_ps <- komega(drugs = drugs_df, reactions = reac, title_reac = "Anaemia (PS)", indication = indi)
-
-#### SS
-reac <- as.character(react_count$warfarin[4,1])
-drug1_ <- names(df_list)[1]
-drug2_ <- as.character(c(as.data.frame(df_list$warfarin$SS)$substance))
-drugs_df_1 <- data.frame(
-  drug1 = drug1_,
-  drug2 = drug2_
-)
-
-o_war_anemia_ss <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (SS)", indication = indi[1])
+o_war_anemia_ss <- komega(drugs = drugs_df, reactions = reac, title_reac = "Nausea (SS)", indication = indi)
 
 #### C
-reac <- as.character(react_count$warfarin[4,1])
-drug1_ <- names(df_list)[1]
-drug2_ <- as.character(c(as.data.frame(df_list$warfarin$C)$substance))
-drugs_df_1 <- data.frame(
-  drug1 = drug1_,
-  drug2 = drug2_
-)
+comb <- most_rep_comb(merge_reac = T, merge_indi = T, top_reac = 2, top_indi = 2, roles = c("C"))
+reac <- comb$reac$reac[2]
+indi <- comb$indi$indi[2]
+drugs_df <- make_df(comb, n_rows = 10)
 
-o_war_anemia_c <- komega(drugs = drugs_df_1, reactions = reac, title_reac = "Anaemia (C)", indication = indi[1])
+o_war_anemia_c <- komega(drugs = drugs_df, reactions = reac, title_reac = "Nausea (C)", indication = indi)
 
 ## Anticoagulant therapy
 # ...
 
-
+# Other drug
+comb <- most_rep_comb(top_drug = 2)
 
 #######
 

@@ -1,0 +1,1 @@
+TO DO:- update flowchart and write it down in draw.io and add it to documentation folder- test function on existing case, test all parameters- create plot function	. asks the user in the console which plots he wants to plot with a list of numbers- update komega package and test it

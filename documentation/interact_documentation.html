@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+
+<html lang="en" xml:lang="en">
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Your Name" />
+
+<meta name="date" content="2025-10-20" />
+
+<title>Exploring anchored drug co-occurrence with interact()</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Exploring anchored drug co-occurrence with
+<code>interact()</code></h1>
+<h4 class="author">Your Name</h4>
+<h4 class="date">2025-10-20</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#purpose" id="toc-purpose">Purpose</a></li>
+<li><a href="#inputs" id="toc-inputs">Inputs</a>
+<ul>
+<li><a href="#required-data-in-the-environment" id="toc-required-data-in-the-environment">Required data in the
+environment</a></li>
+<li><a href="#arguments" id="toc-arguments">Arguments</a>
+<ul>
+<li><a href="#size-1" id="toc-size-1"><code>size = 1</code></a></li>
+<li><a href="#substances-1" id="toc-substances-1"><code>substances = 1</code></a></li>
+<li><a href="#reactions-1-indications-1" id="toc-reactions-1-indications-1"><code>reactions = 1</code>,
+<code>indications = 1</code></a></li>
+<li><a href="#roles-na" id="toc-roles-na"><code>roles = NA</code></a></li>
+<li><a href="#merge_reac-false-merge_indi-false" id="toc-merge_reac-false-merge_indi-false"><code>merge_reac = FALSE</code>,
+<code>merge_indi = FALSE</code></a></li>
+<li><a href="#compute_rankings-never" id="toc-compute_rankings-never"><code>compute_rankings = &quot;never&quot;</code></a></li>
+<li><a href="#anchor_role-i" id="toc-anchor_role-i"><code>anchor_role = &quot;I&quot;</code></a></li>
+<li><a href="#n_rows-10" id="toc-n_rows-10"><code>n_rows = 10</code></a></li>
+<li><a href="#on_missing-stop" id="toc-on_missing-stop"><code>on_missing = &quot;stop&quot;</code></a></li>
+<li><a href="#save-false-file_name-faers_exploring_analysis" id="toc-save-false-file_name-faers_exploring_analysis"><code>save = FALSE</code>,
+<code>file_name = &quot;faers_exploring_analysis&quot;</code></a></li>
+</ul></li>
+</ul></li>
+<li><a href="#processing-pipeline-high-level" id="toc-processing-pipeline-high-level">Processing pipeline (high
+level)</a></li>
+<li><a href="#outputs" id="toc-outputs">Outputs</a></li>
+<li><a href="#interpretation-guidance" id="toc-interpretation-guidance">Interpretation guidance</a></li>
+<li><a href="#computational-time-resource-notes" id="toc-computational-time-resource-notes">Computational time &amp;
+resource notes</a>
+<ul>
+<li><a href="#fast-path-size-na" id="toc-fast-path-size-na">Fast path
+(<code>size = NA</code>)</a></li>
+<li><a href="#exact-sizes-size-in-rank-or-values" id="toc-exact-sizes-size-in-rank-or-values">Exact sizes
+(<code>size</code> in <code>&quot;RANK&quot;</code> or
+<code>&quot;VALUES&quot;</code>)</a></li>
+<li><a href="#other-contributors" id="toc-other-contributors">Other
+contributors</a></li>
+</ul></li>
+<li><a href="#failure-modes-messages" id="toc-failure-modes-messages">Failure modes &amp; messages</a></li>
+<li><a href="#examples" id="toc-examples">Examples</a>
+<ul>
+<li><a href="#quick-overview-with-fast-path-no-size-enumeration" id="toc-quick-overview-with-fast-path-no-size-enumeration">1) Quick
+overview with fast path (no size enumeration)</a></li>
+<li><a href="#exact-pairs-that-include-a-named-anchor" id="toc-exact-pairs-that-include-a-named-anchor">2) Exact pairs that
+include a named anchor</a></li>
+<li><a href="#triplets-including-two-anchors-filtered-by-a-reaction-name" id="toc-triplets-including-two-anchors-filtered-by-a-reaction-name">3)
+Triplets including two anchors, filtered by a reaction name</a></li>
+<li><a href="#compare-size-agnostic-vs-size-specific-results" id="toc-compare-size-agnostic-vs-size-specific-results">4) Compare
+size-agnostic vs size-specific results</a></li>
+<li><a href="#use-ranks-for-reactionsindications" id="toc-use-ranks-for-reactionsindications">5) Use ranks for
+reactions/indications</a></li>
+<li><a href="#save-to-excel" id="toc-save-to-excel">6) Save to
+Excel</a></li>
+</ul></li>
+<li><a href="#tips-best-practices" id="toc-tips-best-practices">Tips
+&amp; best practices</a></li>
+<li><a href="#reference-role-codes" id="toc-reference-role-codes">Reference: role codes</a></li>
+<li><a href="#session-info" id="toc-session-info">Session info</a></li>
+</ul>
+</div>
+
+<div id="purpose" class="section level1">
+<h1>Purpose</h1>
+<p><code>interact()</code> explores co-occurrence patterns of drugs
+within FAERS-like reports, anchored on one or more <strong>drug
+roles</strong> (PS/SS/C/I). It returns:</p>
+<ul>
+<li>the most frequent <strong>anchor-role drugs</strong>,</li>
+<li>the most frequent <strong>drug combinations</strong> under a chosen
+scope,</li>
+<li>optional <strong>rankings</strong> of
+reactions/indications/roles/sizes before and/or after filtering,</li>
+<li>a compact <strong>wide “drugs_df”</strong> derived from top
+combos,</li>
+<li>a human-readable <strong>explanation</strong> of the applied
+filters, and</li>
+<li>a <strong>params</strong> summary useful for reproducibility.</li>
+</ul>
+<p>It is optimized to avoid combinatorial explosion when you don’t
+request exact combination sizes.</p>
+<hr />
+</div>
+<div id="inputs" class="section level1">
+<h1>Inputs</h1>
+<p>All arguments are <strong>single-call configuration</strong>; the
+function reads pre-existing global <code>data.table</code>s:
+<strong><code>Drug</code></strong>, <strong><code>Reac</code></strong>,
+<strong><code>Indi</code></strong>.</p>
+<div id="required-data-in-the-environment" class="section level2">
+<h2>Required data in the environment</h2>
+<ul>
+<li><code>Drug</code> (data.table): columns at least
+<code>primaryid</code>, <code>substance</code> (character),
+<code>role_cod</code> (one of <code>&quot;PS&quot;,&quot;SS&quot;,&quot;C&quot;,&quot;I&quot;</code>).</li>
+<li><code>Reac</code> (data.table): columns at least
+<code>primaryid</code>, <code>pt</code> (reaction Preferred Term).</li>
+<li><code>Indi</code> (data.table): columns at least
+<code>primaryid</code>, <code>indi_pt</code> (indication Preferred
+Term).</li>
+</ul>
+<p>The function stops if these objects are missing or are not
+<code>data.table</code>s.</p>
+</div>
+<div id="arguments" class="section level2">
+<h2>Arguments</h2>
+<div id="size-1" class="section level3">
+<h3><code>size = 1</code></h3>
+<p>Controls <strong>combination size selection</strong> in the final
+anchored scope.</p>
+<ul>
+<li><p>Modes (auto-detected):</p>
+<ul>
+<li><strong><code>&quot;NA&quot;</code></strong> (e.g., <code>size = NA</code>):
+<em>no size enumeration</em> (fast path). One <strong>full-set</strong>
+combo per report (i.e., all unique substances in the report) is
+produced.</li>
+<li><strong><code>&quot;RANK&quot;</code></strong> (e.g., <code>size = 1</code>):
+choose the <strong>k</strong> corresponding to the <em>k-th most
+common</em> report size (computed after anchors/role filters). Example:
+<code>size = 2</code> selects the second most frequent size.</li>
+<li><strong><code>&quot;VALUES&quot;</code></strong> (e.g.,
+<code>size = c(&quot;2&quot;,&quot;4&quot;)</code> or <code>c(&quot;2&quot;,&quot;3&quot;,&quot;4&quot;)</code> as
+strings): enumerate <strong>exact sizes</strong>. This may be expensive;
+see “Computational cost”.</li>
+</ul></li>
+<li><p>Behavior:</p>
+<ul>
+<li>If <code>sizes</code> are <strong>NULL</strong> (i.e., mode
+<code>&quot;NA&quot;</code>), the function <strong>does not enumerate
+combinations</strong>: it emits one combo per report (the set of all
+substances in the report).</li>
+<li>If exact sizes are requested, it <strong>enumerates</strong>
+k-combinations that <strong>must include all anchors</strong> (if
+anchors exist). Reports with size <code>&lt; max(2, #anchors)</code> are
+excluded.</li>
+</ul></li>
+</ul>
+</div>
+<div id="substances-1" class="section level3">
+<h3><code>substances = 1</code></h3>
+<p>Controls <strong>anchor drug(s)</strong> selection.</p>
+<ul>
+<li><p>Modes:</p>
+<ul>
+<li><strong><code>&quot;RANK&quot;</code></strong> (default when a single positive
+integer): pick the substance at that rank from
+<strong><code>top_drugs_full</code></strong> (the frequency of
+substances among reports within <code>anchor_role</code>, before any
+reaction/indication/role narrowing).</li>
+<li><strong><code>&quot;NAMES&quot;</code></strong> (character vector): use the
+provided substance names <strong>as anchors</strong>. Names are
+validated against the current <strong>anchor-role universe</strong>;
+missing names are handled via <code>on_missing</code>.</li>
+</ul></li>
+<li><p>Behavior:</p>
+<ul>
+<li>Anchors are required to all co-occur in a report; otherwise the
+report is dropped.</li>
+<li>The minimum combination size is
+<code>max(2, length(anchors))</code>.</li>
+</ul></li>
+</ul>
+</div>
+<div id="reactions-1-indications-1" class="section level3">
+<h3><code>reactions = 1</code>, <code>indications = 1</code></h3>
+<p>Control optional <strong>scope narrowing</strong> by reaction(s)
+and/or indication(s). These are applied <strong>before</strong> role
+narrowing and before anchoring.</p>
+<ul>
+<li><p>Modes:</p>
+<ul>
+<li><strong><code>&quot;NA&quot;</code></strong> (e.g.,
+<code>reactions = NA</code>): no constraint.</li>
+<li><strong><code>&quot;RANK&quot;</code></strong> (single positive integer): pick
+the k-th most frequent reaction/indication <strong>within the
+anchor-role universe</strong>.</li>
+<li><strong><code>&quot;NAMES&quot;</code></strong> (character vector): constrain
+to reports containing any of those PTs.</li>
+</ul></li>
+<li><p>Activation: these constraints are only <strong>used if</strong>
+the corresponding merge flag is TRUE (<code>merge_reac</code>,
+<code>merge_indi</code>). If the flag is FALSE, the inputs are
+ignored.</p></li>
+<li><p>Missing values handling: when <code>&quot;NAMES&quot;</code>, unknown terms
+are reported via <code>on_missing</code> (see below).</p></li>
+</ul>
+</div>
+<div id="roles-na" class="section level3">
+<h3><code>roles = NA</code></h3>
+<p>Optional <strong>post-anchor role narrowing</strong> (applied
+<strong>after</strong> reaction/indication scoping but
+<strong>before</strong> combos).</p>
+<ul>
+<li><p>Modes:</p>
+<ul>
+<li><strong><code>&quot;NA&quot;</code></strong>: no additional role filter.</li>
+<li><strong><code>&quot;RANK&quot;</code></strong> (single positive integer): keep
+only rows with the k-th most frequent <code>role_cod</code> in the
+intermediate scope.</li>
+<li><strong><code>&quot;NAMES&quot;</code></strong>: one or more of
+<code>&quot;PS&quot;,&quot;SS&quot;,&quot;C&quot;,&quot;I&quot;</code>.</li>
+</ul></li>
+</ul>
+</div>
+<div id="merge_reac-false-merge_indi-false" class="section level3">
+<h3><code>merge_reac = FALSE</code>,
+<code>merge_indi = FALSE</code></h3>
+<p>Enable/disable <strong>reaction/indication constraints</strong>. When
+TRUE, the selected reactions/indications (as per modes above) are
+intersected with the universe.</p>
+</div>
+<div id="compute_rankings-never" class="section level3">
+<h3><code>compute_rankings = &quot;never&quot;</code></h3>
+<p>Controls <strong>summary rankings</strong> computation:</p>
+<ul>
+<li><code>&quot;never&quot;</code>: none.</li>
+<li><code>&quot;before&quot;</code>: rankings computed on the <strong>anchor-role
+universe</strong> (for reactions/indications) and the <strong>DT1
+scope</strong> for roles/size (i.e., after role narrowing but before
+anchoring/size).</li>
+<li><code>&quot;after&quot;</code>: rankings computed on the <strong>final
+anchored scope</strong> (DT2).</li>
+<li><code>&quot;both&quot;</code>: both sets are returned (useful for comparing
+drift due to filters).</li>
+</ul>
+<p>Each ranking returns the top <code>n_rows</code>.</p>
+</div>
+<div id="anchor_role-i" class="section level3">
+<h3><code>anchor_role = &quot;I&quot;</code></h3>
+<p>Defines the <strong>starting universe</strong> as reports where
+<code>Drug$role_cod</code> is in <code>anchor_role</code> (any subset of
+<code>&quot;PS&quot;,&quot;SS&quot;,&quot;C&quot;,&quot;I&quot;</code>). All early frequency tables and the
+initial <strong>top drugs</strong> derive from this universe.</p>
+</div>
+<div id="n_rows-10" class="section level3">
+<h3><code>n_rows = 10</code></h3>
+<p>Number of rows to show for <strong>top tables</strong> (top drugs,
+combos, rankings).</p>
+</div>
+<div id="on_missing-stop" class="section level3">
+<h3><code>on_missing = &quot;stop&quot;</code></h3>
+<p>How to react to <strong>missing names</strong> in
+<code>&quot;NAMES&quot;</code> modes (<code>substances</code>,
+<code>reactions</code>, <code>indications</code>):</p>
+<ul>
+<li><code>&quot;stop&quot;</code>: error.</li>
+<li><code>&quot;proceed&quot;</code>: continue with present values; message lists
+missing ones.</li>
+<li><code>&quot;ask&quot;</code>: interactive menu if running interactively,
+otherwise errors with guidance.</li>
+</ul>
+</div>
+<div id="save-false-file_name-faers_exploring_analysis" class="section level3">
+<h3><code>save = FALSE</code>,
+<code>file_name = &quot;faers_exploring_analysis&quot;</code></h3>
+<p>If <code>TRUE</code>, writes an Excel file (<code>.xlsx</code>) with
+one sheet per output component (requires <code>writexl</code>).</p>
+<hr />
+</div>
+</div>
+</div>
+<div id="processing-pipeline-high-level" class="section level1">
+<h1>Processing pipeline (high level)</h1>
+<ol style="list-style-type: decimal">
+<li><p><strong>Validate inputs</strong> and detect modes
+(<code>NA</code>/<code>RANK</code>/<code>NAMES</code>/<code>VALUES</code>).
+Coerce and check against dictionaries (<code>Drug$substance</code>,
+<code>Reac$pt</code>, <code>Indi$indi_pt</code>, role codes).</p></li>
+<li><p>Build <strong>anchor-role universe</strong>
+(<code>primaryid</code>s with
+<code>role_cod %in% anchor_role</code>).</p></li>
+<li><p>Apply <strong>reaction/indication constraints</strong> if enabled
+(<code>merge_*</code>), narrowing to reports that contain selected
+PTs.</p></li>
+<li><p>Apply <strong>post-anchor role filter</strong> (optional
+<code>&quot;RANK&quot;</code>/<code>&quot;NAMES&quot;</code>).</p></li>
+<li><p>Compute <strong>top_drugs_full</strong> strictly from the
+<strong>anchor-role universe</strong> (ignores reac/indi/role
+filters).</p></li>
+<li><p>Determine <strong>anchors</strong> (from rank or names) and keep
+only reports that contain <strong>all anchors</strong>.</p></li>
+<li><p>Build <strong>size distribution</strong> in the final scope and
+determine <strong>eligible reports</strong> per size rules.</p></li>
+<li><p>Build <strong>combinations</strong>:</p>
+<ul>
+<li><strong>Fast path</strong> when <code>sizes = NULL</code> (i.e.,
+<code>size = NA</code>): emit <strong>one</strong> combo per report (the
+full set); no enumeration.</li>
+<li><strong>Exact sizes</strong>: enumerate k-combinations; if anchors
+exist, they are enforced in every combo.</li>
+</ul></li>
+<li><p>Optionally compute <strong>rankings</strong>
+<code>&quot;before&quot;</code>/<code>&quot;after&quot;</code>.</p></li>
+<li><p>Produce <strong>presentation helpers</strong>
+(<code>drugs_df</code>, <code>explanation</code>) and assemble
+<code>out</code>.</p></li>
+<li><p>Optionally <strong>save</strong> to Excel.</p></li>
+</ol>
+<hr />
+</div>
+<div id="outputs" class="section level1">
+<h1>Outputs</h1>
+<p><code>interact()</code> returns a named <code>list</code>:</p>
+<ul>
+<li><p><strong><code>top_drugs</code></strong>
+(<code>data.table</code>):</p>
+<ul>
+<li>Columns: <code>substance</code>, <code>N</code>.</li>
+<li>Scope: <strong>anchor-role universe</strong> (ignores reac/indi/role
+filters).</li>
+<li>Use: shows the head (<code>n_rows</code>) of the global ranking
+driving rank-based anchor selection.</li>
+</ul></li>
+<li><p><strong><code>top_comb</code></strong>
+(<code>data.table</code>):</p>
+<ul>
+<li>Columns: <code>combo</code> (e.g., <code>&quot;A + B + C&quot;</code>),
+<code>N</code>, <code>perc</code>.</li>
+<li>Scope: <strong>final anchored scope</strong> with <strong>selected
+sizes</strong> <em>if provided</em>; otherwise <strong>fast
+full-set</strong> per report (one combo per report).</li>
+<li><code>perc</code> is the within-table percentage
+(<code>round(100*N/sum(N), 1)</code>).</li>
+</ul></li>
+<li><p><strong><code>top_comb_gen</code></strong>
+(<code>data.table</code>):</p>
+<ul>
+<li>Same columns as <code>top_comb</code>.</li>
+<li>Scope: <strong>final anchored scope</strong>,
+<strong>always</strong> fast full-set path (ignores <code>size</code>
+input and enumerations). Useful as a stable reference.</li>
+</ul></li>
+<li><p><strong><code>drugs_df</code></strong>
+(<code>data.frame</code>):</p>
+<ul>
+<li>A <strong>wide</strong> table derived from <code>top_comb</code>,
+with columns <code>drug1, drug2, ..., drugK</code>.</li>
+<li><code>drug1</code> is the <strong>first anchor</strong> if anchors
+exist, otherwise the top substance from <code>top_drugs</code>.</li>
+<li>For each top combo, everything except <code>drug1</code> is spread
+across <code>drug2..</code>. The number of columns adapts to the largest
+combo.</li>
+</ul></li>
+<li><p><strong><code>explanation</code></strong> (<code>character</code>
+vector):</p>
+<ul>
+<li>Bulleted strings describing the <strong>exact</strong>
+filters/choices applied (anchor roles, anchors, whether
+reaction/indication merges were enabled and which terms were used, role
+filter, size selection, rankings timing). Also printed as messages.</li>
+</ul></li>
+<li><p><strong><code>params</code></strong> (<code>list</code> of simple
+vectors):</p>
+<ul>
+<li><p>Echoes the <strong>effective parameters</strong> that were
+<strong>actually applied</strong>, post-validation and rank/name
+resolution:</p>
+<ul>
+<li><code>anchor_role</code>, <code>merge_reac</code>,
+<code>merge_indi</code>,</li>
+<li><code>reactions</code>/<code>indications</code> actually used (or
+<code>NA</code>),</li>
+<li><code>roles_applied</code> actually used (or <code>NA</code>),</li>
+<li><code>size_used</code> actually used (or <code>NA</code>),</li>
+<li><code>anchors_applied</code> (character vector).</li>
+</ul></li>
+</ul></li>
+<li><p><strong><code>rankings</code></strong> (<code>list</code> or
+<code>NULL</code>):</p>
+<ul>
+<li><p>May include any of the following, each as a
+<code>data.table</code> limited to <code>n_rows</code>:</p>
+<ul>
+<li><code>mr_reac_beg</code>, <code>mr_indi_beg</code>,
+<code>mr_role_beg</code>, <code>mr_size_beg</code> (when
+<code>&quot;before&quot;</code>/<code>&quot;both&quot;</code>),</li>
+<li><code>mr_reac_end</code>, <code>mr_indi_end</code>,
+<code>mr_roles_end</code>, <code>mr_size_end</code> (when
+<code>&quot;after&quot;</code>/<code>&quot;both&quot;</code>).</li>
+</ul></li>
+</ul></li>
+</ul>
+<p>If <code>save = TRUE</code>, an Excel workbook is created with
+sheets: <code>top_drugs</code>, <code>top_comb</code>,
+<code>top_comb_gen</code>, <code>drugs_df</code>,
+<code>explanation</code>, any <code>rankings</code> present, and a
+<code>params</code> sheet.</p>
+<hr />
+</div>
+<div id="interpretation-guidance" class="section level1">
+<h1>Interpretation guidance</h1>
+<ul>
+<li><strong><code>top_drugs</code></strong> helps you see which
+substances dominate the <strong>anchor-role</strong> subset. If you pick
+anchors by rank, they come from here.</li>
+<li><strong><code>top_comb</code></strong> answers: <em>“Among reports
+that contain all anchors and pass filters, which (selected-size)
+combinations are most common?”</em> If <code>size = NA</code>, it
+answers: <em>“Which <strong>full report sets</strong> (all substances
+observed together) are most common?”</em>.</li>
+<li><strong><code>top_comb_gen</code></strong> is a
+<strong>size-agnostic baseline</strong> on the final scope; compare it
+to <code>top_comb</code> to understand how size selection impacted
+results.</li>
+<li><strong><code>rankings</code></strong> before vs after filtering
+help you <strong>quantify the effect</strong> of anchor/role/size
+constraints on the distribution of reactions, indications, roles, and
+sizes.</li>
+</ul>
+<hr />
+</div>
+<div id="computational-time-resource-notes" class="section level1">
+<h1>Computational time &amp; resource notes</h1>
+<p>Let:</p>
+<ul>
+<li><code>R</code> = number of reports in the anchor-role universe,</li>
+<li><code>R&#39;</code> = reports after reac/indi/role filters,</li>
+<li><code>k_i</code> = number of unique substances in report
+<code>i</code> after filters,</li>
+<li><code>\u0304{k}</code> (written as <span class="math inline">\(\bar{k}\)</span>) = average <span class="math inline">\(k_i\)</span> across retained reports,</li>
+<li><code>A</code> = number of anchors.</li>
+</ul>
+<div id="fast-path-size-na" class="section level2">
+<h2>Fast path (<code>size = NA</code>)</h2>
+<ul>
+<li>Work per report is essentially <strong>O(<span class="math inline">\(k_i\)</span>)</strong> to sort and concatenate
+unique substances into a single label.</li>
+<li>Overall complexity ≈ <strong>O(<span class="math inline">\(\sum
+k_i\)</span>)</strong> across <code>R&#39;</code> reports (linear in total
+unique drug mentions).</li>
+<li>This is <strong>very fast</strong> and scales to large
+datasets.</li>
+</ul>
+</div>
+<div id="exact-sizes-size-in-rank-or-values" class="section level2">
+<h2>Exact sizes (<code>size</code> in <code>&quot;RANK&quot;</code> or
+<code>&quot;VALUES&quot;</code>)</h2>
+<ul>
+<li><p>For a given <span class="math inline">\(k\)</span>, enumerating
+combinations is <strong>O(<span class="math inline">\(\sum
+\binom{k_i}{k}\)</span>)</strong>. With multiple <span class="math inline">\(k\)</span> values, sum across ks.</p></li>
+<li><p>With <strong>anchors</strong>, every combo <strong>must include
+all anchors</strong>. This reduces enumeration to:</p>
+<ul>
+<li>Choose <span class="math inline">\(r = k - A\)</span> from the
+<strong>non-anchor</strong> set in a report. Cost per report becomes
+<strong><span class="math inline">\(\binom{k_i - A}{k -
+A}\)</span></strong> (if <span class="math inline">\(k \ge A\)</span>),
+often much smaller.</li>
+</ul></li>
+<li><p>Practical guidance:</p>
+<ul>
+<li>Prefer the <strong>fast path</strong> unless you specifically need
+fixed-size combos.</li>
+<li>If using exact sizes, keep <span class="math inline">\(k\)</span>
+small (e.g., 2–4) and use <strong>anchors</strong> to reduce <span class="math inline">\(k_i - A\)</span>.</li>
+<li>Large <span class="math inline">\(k\)</span> or large <span class="math inline">\(k_i\)</span> lead to <strong>combinatorial
+growth</strong> and high memory/time.</li>
+</ul></li>
+</ul>
+</div>
+<div id="other-contributors" class="section level2">
+<h2>Other contributors</h2>
+<ul>
+<li>Frequency tables (<code>.N, by = ...</code>) are standard
+<code>data.table</code> group-bys ~ <strong>O(n)</strong> with hashing;
+these are not usually the bottleneck.</li>
+<li>Memory is dominated by the number of enumerated combos kept in
+<code>combo_labels</code>. With <code>size = NA</code>, memory is
+minimal (≈ one row per report).</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="failure-modes-messages" class="section level1">
+<h1>Failure modes &amp; messages</h1>
+<ul>
+<li>Missing globals: stops if <code>Drug</code>, <code>Reac</code>,
+<code>Indi</code> do not exist or are not <code>data.table</code>s.</li>
+<li>Empty universes: stops when any filtering stage yields zero reports
+(e.g., anchor role has no reports; no reports contain all anchors;
+reac/indi/role constraints remove everything).</li>
+<li>Invalid codes/names: stops on invalid <code>role_cod</code> inputs;
+with <code>&quot;NAMES&quot;</code> modes, missing terms are handled per
+<code>on_missing</code>.</li>
+<li>Rank out of bounds: rank selections are <strong>clamped</strong> to
+valid range (e.g., asking for rank 100 when only 20 exist gives rank
+20), so you won’t get an index error, but a subtle change in selected
+entity.</li>
+<li>Saving: stops if <code>writexl</code> is missing when
+<code>save = TRUE</code>.</li>
+</ul>
+<hr />
+</div>
+<div id="examples" class="section level1">
+<h1>Examples</h1>
+<blockquote>
+<p>Assume the usual FAERS-like tables are loaded as
+<code>data.table</code>s in the environment.</p>
+</blockquote>
+<div id="quick-overview-with-fast-path-no-size-enumeration" class="section level2">
+<h2>1) Quick overview with fast path (no size enumeration)</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="cn">NA</span>,                  <span class="co"># fast full-set combos</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="dv">1</span>,             <span class="co"># anchor = top substance in anchor-role universe</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="at">anchor_role =</span> <span class="st">&quot;I&quot;</span>,          <span class="co"># investigational drugs</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>  <span class="at">n_rows =</span> <span class="dv">15</span>,                <span class="co"># show more rows</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="at">compute_rankings =</span> <span class="st">&quot;before&quot;</span> <span class="co"># see distributions before anchoring</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>)</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>out<span class="sc">$</span>top_drugs</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>out<span class="sc">$</span>top_comb       <span class="co"># one full-set combo per report (top 15)</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>out<span class="sc">$</span>rankings<span class="sc">$</span>mr_size_beg</span></code></pre></div>
+</div>
+<div id="exact-pairs-that-include-a-named-anchor" class="section level2">
+<h2>2) Exact pairs that include a named anchor</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="st">&quot;2&quot;</span>,                         <span class="co"># exact pairs</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="fu">c</span>(<span class="st">&quot;AMOXICILLIN&quot;</span>),      <span class="co"># require this anchor</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">anchor_role =</span> <span class="fu">c</span>(<span class="st">&quot;PS&quot;</span>,<span class="st">&quot;SS&quot;</span>),         <span class="co"># suspect roles</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">roles =</span> <span class="fu">c</span>(<span class="st">&quot;PS&quot;</span>,<span class="st">&quot;SS&quot;</span>),               <span class="co"># keep suspect drugs post-anchor</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">compute_rankings =</span> <span class="st">&quot;after&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">n_rows =</span> <span class="dv">20</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>out<span class="sc">$</span>top_comb       <span class="co"># most frequent pairs that include AMOXICILLIN</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>out<span class="sc">$</span>drugs_df       <span class="co"># drug1 is AMOXICILLIN; drug2 shows the partner</span></span></code></pre></div>
+</div>
+<div id="triplets-including-two-anchors-filtered-by-a-reaction-name" class="section level2">
+<h2>3) Triplets including two anchors, filtered by a reaction name</h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="st">&quot;3&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="fu">c</span>(<span class="st">&quot;IBUPROFEN&quot;</span>,<span class="st">&quot;PARACETAMOL&quot;</span>),  <span class="co"># both must co-occur</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">merge_reac =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="at">reactions =</span> <span class="fu">c</span>(<span class="st">&quot;NAUSEA&quot;</span>),                    <span class="co"># keep reports with NAUSEA</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">anchor_role =</span> <span class="st">&quot;C&quot;</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="at">on_missing =</span> <span class="st">&quot;proceed&quot;</span>                      <span class="co"># if a name is absent, continue</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>)</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>out<span class="sc">$</span>explanation</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>out<span class="sc">$</span>top_comb</span></code></pre></div>
+</div>
+<div id="compare-size-agnostic-vs-size-specific-results" class="section level2">
+<h2>4) Compare size-agnostic vs size-specific results</h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="fu">c</span>(<span class="st">&quot;2&quot;</span>,<span class="st">&quot;3&quot;</span>),             <span class="co"># enumerate pairs and triplets</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="dv">1</span>,                <span class="co"># top anchor</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">compute_rankings =</span> <span class="st">&quot;both&quot;</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">n_rows =</span> <span class="dv">10</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>out<span class="sc">$</span>top_comb       <span class="co"># pairs/triplets only</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>out<span class="sc">$</span>top_comb_gen   <span class="co"># same scope but full-set per report</span></span></code></pre></div>
+</div>
+<div id="use-ranks-for-reactionsindications" class="section level2">
+<h2>5) Use ranks for reactions/indications</h2>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="cn">NA</span>,</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="dv">1</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">merge_reac =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">reactions =</span> <span class="dv">3</span>,           <span class="co"># 3rd most frequent reaction in anchor-role universe</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">merge_indi =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">indications =</span> <span class="dv">1</span>,         <span class="co"># top indication</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">compute_rankings =</span> <span class="st">&quot;after&quot;</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>)</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>out<span class="sc">$</span>params<span class="sc">$</span>reactions     <span class="co"># the resolved reaction PT</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>out<span class="sc">$</span>params<span class="sc">$</span>indications   <span class="co"># the resolved indication PT</span></span></code></pre></div>
+</div>
+<div id="save-to-excel" class="section level2">
+<h2>6) Save to Excel</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">interact</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">size =</span> <span class="cn">NA</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">substances =</span> <span class="fu">c</span>(<span class="st">&quot;WARFARIN&quot;</span>),</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">anchor_role =</span> <span class="fu">c</span>(<span class="st">&quot;PS&quot;</span>,<span class="st">&quot;SS&quot;</span>,<span class="st">&quot;C&quot;</span>,<span class="st">&quot;I&quot;</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">save =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">file_name =</span> <span class="st">&quot;faers_exploring_analysis.xlsx&quot;</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co"># Console prints the normalized path if successful</span></span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="tips-best-practices" class="section level1">
+<h1>Tips &amp; best practices</h1>
+<ul>
+<li><strong>Start fast</strong>: begin with <code>size = NA</code> to
+understand the landscape, then move to exact sizes if needed.</li>
+<li><strong>Use anchors</strong>: even one anchor dramatically reduces
+enumeration when <code>size</code> is fixed.</li>
+<li><strong>Role consistency</strong>: when exploring suspect
+relationships, set both <code>anchor_role</code> and <code>roles</code>
+to suspect codes to keep semantics aligned.</li>
+<li><strong>Compare paths</strong>: <code>top_comb</code> vs
+<code>top_comb_gen</code> tells you how much your size selection is
+shaping the results.</li>
+<li><strong>Reproducibility</strong>: retain <code>out$params</code> and
+<code>out$explanation</code> alongside your tables when reporting.</li>
+<li><strong>Missing terms</strong>: prefer
+<code>on_missing = &quot;proceed&quot;</code> during exploratory analysis, and
+switch to <code>&quot;stop&quot;</code> in pipelines.</li>
+</ul>
+<hr />
+</div>
+<div id="reference-role-codes" class="section level1">
+<h1>Reference: role codes</h1>
+<ul>
+<li><code>PS</code> = Primary suspect</li>
+<li><code>SS</code> = Secondary suspect</li>
+<li><code>C</code> = Concomitant</li>
+<li><code>I</code> = Interacting</li>
+</ul>
+<hr />
+</div>
+<div id="session-info" class="section level1">
+<h1>Session info</h1>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; R version 4.4.2 (2024-10-31 ucrt)</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; Platform: x86_64-w64-mingw32/x64</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; Running under: Windows 10 x64 (build 19045)</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; Matrix products: default</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt; locale:</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt; [1] LC_COLLATE=Italian_Italy.utf8  LC_CTYPE=Italian_Italy.utf8   </span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt; [3] LC_MONETARY=Italian_Italy.utf8 LC_NUMERIC=C                  </span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; [5] LC_TIME=Italian_Italy.utf8    </span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; time zone: Europe/Rome</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt; tzcode source: internal</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt; attached base packages:</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co">#&gt; other attached packages:</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="co">#&gt; [1] data.table_1.17.6</span></span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#&gt;  [1] digest_0.6.37     R6_2.6.1          fastmap_1.2.0     xfun_0.52        </span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="co">#&gt;  [5] cachem_1.1.0      knitr_1.50        htmltools_0.5.8.1 rmarkdown_2.30   </span></span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="co">#&gt;  [9] lifecycle_1.0.4   cli_3.6.5         sass_0.4.10       jquerylib_0.1.4  </span></span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co">#&gt; [13] compiler_4.4.2    rstudioapi_0.17.1 tools_4.4.2       evaluate_1.0.5   </span></span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a><span class="co">#&gt; [17] bslib_0.9.0       yaml_2.3.10       rlang_1.1.6       jsonlite_2.0.0</span></span></code></pre></div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
