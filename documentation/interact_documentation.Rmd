@@ -1,6 +1,5 @@
 ---
 title: "Exploring anchored drug co-occurrence with `interact()`"
-author: "Your Name"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
 output:
   rmarkdown::html_vignette:
@@ -32,14 +31,14 @@ library(data.table)
 
 `interact()` explores co-occurrence patterns of drugs within FAERS-like reports, anchored on one or more **drug roles** (PS/SS/C/I). It returns:
 
-* the most frequent **anchor-role drugs**,
+* the most frequent **anchor-role drugs** (computed from the **global anchor-role universe** or from the **already-scoped universe** when any *name-based* filter is used — see details below),
 * the most frequent **drug combinations** under a chosen scope,
 * optional **rankings** of reactions/indications/roles/sizes before and/or after filtering,
-* a compact **wide “drugs_df”** derived from top combos,
+* a compact **wide “drugs_df”** derived from top combos (with a switch to use the size-agnostic reference),
 * a human-readable **explanation** of the applied filters, and
 * a **params** summary useful for reproducibility.
 
-It is optimized to avoid combinatorial explosion when you don’t request exact combination sizes.
+It is optimized to avoid combinatorial explosion by **never enumerating k-combinations**: results are always based on **full-set combos per report**; `size` only **restricts which report sizes are considered**, not the within-report enumeration.
 
 ---
 
@@ -59,18 +58,18 @@ The function stops if these objects are missing or are not `data.table`s.
 
 ### `size = 1`
 
-Controls **combination size selection** in the final anchored scope.
+Controls **which report sizes are included** in the final anchored scope. It **does not enumerate k-combinations**; instead, it selects reports whose **full-set size** matches the rule below and then derives **one full-set combo per report**.
 
 * Modes (auto-detected):
 
-  * **`"NA"`** (e.g., `size = NA`): *no size enumeration* (fast path). One **full-set** combo per report (i.e., all unique substances in the report) is produced.
-  * **`"RANK"`** (e.g., `size = 1`): choose the **k** corresponding to the *k-th most common* report size (computed after anchors/role filters). Example: `size = 2` selects the second most frequent size.
-  * **`"VALUES"`** (e.g., `size = c("2","4")` or `c("2","3","4")` as strings): enumerate **exact sizes**. This may be expensive; see “Computational cost”.
+  * **`"NA"`** (e.g., `size = NA`): *size-agnostic* (fast path). All reports (subject to filters) are used; one **full-set** combo per report is produced.
+  * **`"RANK"`** (e.g., `size = 1`): choose the **k** corresponding to the *k-th most common* **report size** (computed **after** anchors/role filters). Example: `size = 2` selects reports whose **full-set size** equals the second most frequent size.
+  * **`"VALUES"`** (e.g., `size = c("2","4")` or `c("2","3","4")` as strings): **keep reports whose full-set size** equals any of those exact sizes.
 
 * Behavior:
 
-  * If `sizes` are **NULL** (i.e., mode `"NA"`), the function **does not enumerate combinations**: it emits one combo per report (the set of all substances in the report).
-  * If exact sizes are requested, it **enumerates** k-combinations that **must include all anchors** (if anchors exist). Reports with size `< max(2, #anchors)` are excluded.
+  * No combination enumeration is ever performed. The output always contains **one combo per report** (the full set of unique substances in that report).
+  * When exact sizes are requested, the function **keeps only those reports** whose full-set size matches the requested values.
 
 ### `substances = 1`
 
@@ -78,8 +77,8 @@ Controls **anchor drug(s)** selection.
 
 * Modes:
 
-  * **`"RANK"`** (default when a single positive integer): pick the substance at that rank from **`top_drugs_full`** (the frequency of substances among reports within `anchor_role`, before any reaction/indication/role narrowing).
-  * **`"NAMES"`** (character vector): use the provided substance names **as anchors**. Names are validated against the current **anchor-role universe**; missing names are handled via `on_missing`.
+  * **`"RANK"`** (default when a single positive integer): pick the substance at that rank from the selected **top drugs base** (see “Top drugs base” below).
+  * **`"NAMES"`** (character vector): use the provided substance names **as anchors**. Names are validated against the current **anchor-role base** in use; missing names are handled via `on_missing`.
 
 * Behavior:
 
@@ -88,7 +87,7 @@ Controls **anchor drug(s)** selection.
 
 ### `reactions = 1`, `indications = 1`
 
-Control optional **scope narrowing** by reaction(s) and/or indication(s). These are applied **before** role narrowing and before anchoring.
+Control optional **scope narrowing** by reaction(s) and/or indication(s). These are applied **before** role narrowing and anchoring.
 
 * Modes:
 
@@ -102,7 +101,7 @@ Control optional **scope narrowing** by reaction(s) and/or indication(s). These 
 
 ### `roles = NA`
 
-Optional **post-anchor role narrowing** (applied **after** reaction/indication scoping but **before** combos).
+Optional **post-anchor role narrowing** (applied **after** reaction/indication scoping but **before** anchoring).
 
 * Modes:
 
@@ -114,20 +113,27 @@ Optional **post-anchor role narrowing** (applied **after** reaction/indication s
 
 Enable/disable **reaction/indication constraints**. When TRUE, the selected reactions/indications (as per modes above) are intersected with the universe.
 
+### `use_gen_for_drugs_df = FALSE`
+
+Controls the **source table** used to derive `drugs_df`:
+
+* `FALSE` (default): `drugs_df` is built from `top_comb` (which may be size-restricted).
+* `TRUE`: `drugs_df` is built from `top_comb_gen` (the **size-agnostic** reference on the final anchored scope).
+
 ### `compute_rankings = "never"`
 
 Controls **summary rankings** computation:
 
 * `"never"`: none.
-* `"before"`: rankings computed on the **anchor-role universe** (for reactions/indications) and the **DT1 scope** for roles/size (i.e., after role narrowing but before anchoring/size).
+* `"before"`: rankings computed on the **anchor-role universe** (for reactions/indications) and the **DT1 scope** for roles/size (i.e., after role narrowing but before anchoring).
 * `"after"`: rankings computed on the **final anchored scope** (DT2).
-* `"both"`: both sets are returned (useful for comparing drift due to filters).
+* `"both"`: both sets are returned.
 
 Each ranking returns the top `n_rows`.
 
 ### `anchor_role = "I"`
 
-Defines the **starting universe** as reports where `Drug$role_cod` is in `anchor_role` (any subset of `"PS","SS","C","I"`). All early frequency tables and the initial **top drugs** derive from this universe.
+Defines the **starting universe** as reports where `Drug$role_cod` is in `anchor_role` (any subset of `"PS","SS","C","I"`). Early frequency tables derive from this universe.
 
 ### `n_rows = 10`
 
@@ -147,6 +153,16 @@ If `TRUE`, writes an Excel file (`.xlsx`) with one sheet per output component (r
 
 ---
 
+# Top drugs base
+
+`top_drugs` (and rank-based anchor selection) are computed from:
+
+* the **global anchor-role universe** (ignoring reaction/indication/role filters), **unless**
+* **any name-based filter is present** among: `substances` (anchors by name), `reactions` (with `merge_reac=TRUE`), `indications` (with `merge_indi=TRUE`), or `roles` (post-anchor by name).
+  In that case, `top_drugs` are computed from the **already-scoped DT1** to reflect the name-based constraints.
+
+---
+
 # Processing pipeline (high level)
 
 1. **Validate inputs** and detect modes (`NA`/`RANK`/`NAMES`/`VALUES`). Coerce and check against dictionaries (`Drug$substance`, `Reac$pt`, `Indi$indi_pt`, role codes).
@@ -157,20 +173,25 @@ If `TRUE`, writes an Excel file (`.xlsx`) with one sheet per output component (r
 
 4. Apply **post-anchor role filter** (optional `"RANK"`/`"NAMES"`).
 
-5. Compute **top_drugs_full** strictly from the **anchor-role universe** (ignores reac/indi/role filters).
+5. Compute `top_drugs` from either the **global anchor-role universe** or the **scoped** universe (see “Top drugs base”).
 
 6. Determine **anchors** (from rank or names) and keep only reports that contain **all anchors**.
 
-7. Build **size distribution** in the final scope and determine **eligible reports** per size rules.
+7. Build **size distribution** in the final scope and determine **eligible reports** per size rules (note: **no combination enumeration** is performed).
 
 8. Build **combinations**:
 
-   * **Fast path** when `sizes = NULL` (i.e., `size = NA`): emit **one** combo per report (the full set); no enumeration.
-   * **Exact sizes**: enumerate k-combinations; if anchors exist, they are enforced in every combo.
+   * **`top_comb_gen`**: always the **size-agnostic** full-set path (one combo per report in the final anchored scope).
+   * **`top_comb`**:
+
+     * if `size = NA`: equals `top_comb_gen`;
+     * otherwise: **full-set** combos **only from reports** whose full-set size matches the selected size(s).
 
 9. Optionally compute **rankings** `"before"`/`"after"`.
 
 10. Produce **presentation helpers** (`drugs_df`, `explanation`) and assemble `out`.
+
+    * `drugs_df` is built from `top_comb` by default, or from `top_comb_gen` when `use_gen_for_drugs_df = TRUE`.
 
 11. Optionally **save** to Excel.
 
@@ -183,23 +204,24 @@ If `TRUE`, writes an Excel file (`.xlsx`) with one sheet per output component (r
 * **`top_drugs`** (`data.table`):
 
   * Columns: `substance`, `N`.
-  * Scope: **anchor-role universe** (ignores reac/indi/role filters).
-  * Use: shows the head (`n_rows`) of the global ranking driving rank-based anchor selection.
+  * Scope: **global anchor-role** or **scoped** (see “Top drugs base”).
+  * Use: drives rank-based anchor selection.
 
 * **`top_comb`** (`data.table`):
 
   * Columns: `combo` (e.g., `"A + B + C"`), `N`, `perc`.
-  * Scope: **final anchored scope** with **selected sizes** *if provided*; otherwise **fast full-set** per report (one combo per report).
+  * Scope: **final anchored scope**, **one full-set combo per report**.
+  * If `size` is provided, **only reports whose full-set size equals the chosen size(s)** contribute.
   * `perc` is the within-table percentage (`round(100*N/sum(N), 1)`).
 
 * **`top_comb_gen`** (`data.table`):
 
   * Same columns as `top_comb`.
-  * Scope: **final anchored scope**, **always** fast full-set path (ignores `size` input and enumerations). Useful as a stable reference.
+  * Scope: **final anchored scope**, **always** size-agnostic (all report sizes). Serves as a stable reference.
 
 * **`drugs_df`** (`data.frame`):
 
-  * A **wide** table derived from `top_comb`, with columns `drug1, drug2, ..., drugK`.
+  * A **wide** table derived from `top_comb` (or from `top_comb_gen` if `use_gen_for_drugs_df=TRUE`), with columns `drug1, drug2, ..., drugK`.
   * `drug1` is the **first anchor** if anchors exist, otherwise the top substance from `top_drugs`.
   * For each top combo, everything except `drug1` is spread across `drug2..`. The number of columns adapts to the largest combo.
 
@@ -209,13 +231,13 @@ If `TRUE`, writes an Excel file (`.xlsx`) with one sheet per output component (r
 
 * **`params`** (`list` of simple vectors):
 
-  * Echoes the **effective parameters** that were **actually applied**, post-validation and rank/name resolution:
+  * Echoes the **effective parameters** actually applied:
 
     * `anchor_role`, `merge_reac`, `merge_indi`,
-    * `reactions`/`indications` actually used (or `NA`),
-    * `roles_applied` actually used (or `NA`),
-    * `size_used` actually used (or `NA`),
-    * `anchors_applied` (character vector).
+    * `reactions`/`indications` used (or `NA`),
+    * `roles_applied` used (or `NA`),
+    * `size_used` (or `NA`),
+    * `anchors_applied`.
 
 * **`rankings`** (`list` or `NULL`):
 
@@ -231,11 +253,11 @@ If `save = TRUE`, an Excel workbook is created with sheets:
 
 # Interpretation guidance
 
-* **`top_drugs`** helps you see which substances dominate the **anchor-role** subset. If you pick anchors by rank, they come from here.
-* **`top_comb`** answers: *“Among reports that contain all anchors and pass filters, which (selected-size) combinations are most common?”*
-  If `size = NA`, it answers: *“Which **full report sets** (all substances observed together) are most common?”*.
+* **`top_drugs`** helps you see which substances dominate the **anchor-role** subset (global or scoped, depending on filters). If you pick anchors by rank, they come from here.
+* **`top_comb`** answers: *“Among reports that contain all anchors and pass filters, which **full-set** (report-level) combinations are most common?”*
+  If `size` is given, it answers: *“Same as above, but **only for reports whose full-set size** equals the selected size(s).”*
 * **`top_comb_gen`** is a **size-agnostic baseline** on the final scope; compare it to `top_comb` to understand how size selection impacted results.
-* **`rankings`** before vs after filtering help you **quantify the effect** of anchor/role/size constraints on the distribution of reactions, indications, roles, and sizes.
+* **`drugs_df`** can be derived either from the size-restricted results or from the size-agnostic baseline via `use_gen_for_drugs_df`.
 
 ---
 
@@ -245,34 +267,15 @@ Let:
 
 * `R` = number of reports in the anchor-role universe,
 * `R'` = reports after reac/indi/role filters,
-* `k_i` = number of unique substances in report `i` after filters,
-* `\u0304{k}` (written as $\bar{k}$) = average $k_i$ across retained reports,
-* `A` = number of anchors.
+* `k_i` = number of unique substances in report `i` after filters.
 
-## Fast path (`size = NA`)
+## Single full-set per report (always)
 
 * Work per report is essentially **O($k_i$)** to sort and concatenate unique substances into a single label.
-* Overall complexity ≈ **O($\sum k_i$)** across `R'` reports (linear in total unique drug mentions).
+* Overall complexity ≈ **O($\sum k_i$)** across retained reports (linear in total unique drug mentions).
 * This is **very fast** and scales to large datasets.
 
-## Exact sizes (`size` in `"RANK"` or `"VALUES"`)
-
-* For a given $k$, enumerating combinations is **O($\sum \binom{k_i}{k}$)**. With multiple $k$ values, sum across ks.
-
-* With **anchors**, every combo **must include all anchors**. This reduces enumeration to:
-
-  * Choose $r = k - A$ from the **non-anchor** set in a report. Cost per report becomes **$\binom{k_i - A}{k - A}$** (if $k \ge A$), often much smaller.
-
-* Practical guidance:
-
-  * Prefer the **fast path** unless you specifically need fixed-size combos.
-  * If using exact sizes, keep $k$ small (e.g., 2–4) and use **anchors** to reduce $k_i - A$.
-  * Large $k$ or large $k_i$ lead to **combinatorial growth** and high memory/time.
-
-## Other contributors
-
-* Frequency tables (`.N, by = ...`) are standard `data.table` group-bys ~ **O(n)** with hashing; these are not usually the bottleneck.
-* Memory is dominated by the number of enumerated combos kept in `combo_labels`. With `size = NA`, memory is minimal (≈ one row per report).
+> Note: **No** k-combination enumeration is performed. Using `size` merely **selects report sizes**, which is inexpensive (count-then-filter).
 
 ---
 
@@ -281,7 +284,7 @@ Let:
 * Missing globals: stops if `Drug`, `Reac`, `Indi` do not exist or are not `data.table`s.
 * Empty universes: stops when any filtering stage yields zero reports (e.g., anchor role has no reports; no reports contain all anchors; reac/indi/role constraints remove everything).
 * Invalid codes/names: stops on invalid `role_cod` inputs; with `"NAMES"` modes, missing terms are handled per `on_missing`.
-* Rank out of bounds: rank selections are **clamped** to valid range (e.g., asking for rank 100 when only 20 exist gives rank 20), so you won’t get an index error, but a subtle change in selected entity.
+* Rank out of bounds: rank selections are **clamped** to valid range.
 * Saving: stops if `writexl` is missing when `save = TRUE`.
 
 ---
@@ -290,12 +293,12 @@ Let:
 
 > Assume the usual FAERS-like tables are loaded as `data.table`s in the environment.
 
-## 1) Quick overview with fast path (no size enumeration)
+## 1) Quick overview with size-agnostic full sets
 
 ```{r, eval=FALSE}
 out <- interact(
-  size = NA,                  # fast full-set combos
-  substances = 1,             # anchor = top substance in anchor-role universe
+  size = NA,                  # size-agnostic: one full-set combo per report
+  substances = 1,             # anchor = top substance (base depends on filters)
   anchor_role = "I",          # interacting drugs
   n_rows = 15,                # show more rows
   compute_rankings = "before" # see distributions before anchoring
@@ -305,22 +308,22 @@ out$top_comb       # one full-set combo per report (top 15)
 out$rankings$mr_size_beg
 ```
 
-## 2) Exact pairs that include a named anchor
+## 2) Reports of size 2 (pairs) that include a named anchor
 
 ```{r, eval=FALSE}
 out <- interact(
-  size = "2",                         # exact pairs
+  size = "2",                         # keep only reports whose full-set size is 2
   substances = c("AMOXICILLIN"),      # require this anchor
   anchor_role = c("PS","SS"),         # suspect roles
   roles = c("PS","SS"),               # keep suspect drugs post-anchor
   compute_rankings = "after",
   n_rows = 20
 )
-out$top_comb       # most frequent pairs that include AMOXICILLIN
+out$top_comb       # most frequent full-set pairs that include AMOXICILLIN
 out$drugs_df       # drug1 is AMOXICILLIN; drug2 shows the partner
 ```
 
-## 3) Triplets including two anchors, filtered by a reaction name
+## 3) Reports of size 3 including two anchors, filtered by a reaction name
 
 ```{r, eval=FALSE}
 out <- interact(
@@ -339,13 +342,13 @@ out$top_comb
 
 ```{r, eval=FALSE}
 out <- interact(
-  size = c("2","3"),             # enumerate pairs and triplets
+  size = c("2","3"),             # restrict to reports sized 2 or 3 (full sets)
   substances = 1,                # top anchor
   compute_rankings = "both",
   n_rows = 10
 )
-out$top_comb       # pairs/triplets only
-out$top_comb_gen   # same scope but full-set per report
+out$top_comb       # full sets from size-2/3 reports only
+out$top_comb_gen   # same scope but includes all sizes (size-agnostic)
 ```
 
 ## 5) Use ranks for reactions/indications
@@ -381,12 +384,13 @@ out <- interact(
 
 # Tips & best practices
 
-* **Start fast**: begin with `size = NA` to understand the landscape, then move to exact sizes if needed.
-* **Use anchors**: even one anchor dramatically reduces enumeration when `size` is fixed.
+* **Start size-agnostic**: begin with `size = NA` to understand the landscape, then optionally restrict to exact report sizes.
+* **Use anchors**: even one anchor reduces scope and focuses results.
 * **Role consistency**: when exploring suspect relationships, set both `anchor_role` and `roles` to suspect codes to keep semantics aligned.
-* **Compare paths**: `top_comb` vs `top_comb_gen` tells you how much your size selection is shaping the results.
+* **Compare paths**: `top_comb` vs `top_comb_gen` tells you how much your size restriction is shaping the results.
 * **Reproducibility**: retain `out$params` and `out$explanation` alongside your tables when reporting.
 * **Missing terms**: prefer `on_missing = "proceed"` during exploratory analysis, and switch to `"stop"` in pipelines.
+* **Control `drugs_df` base**: set `use_gen_for_drugs_df = TRUE` to build the wide table from the size-agnostic baseline.
 
 ---
 
@@ -404,4 +408,3 @@ out <- interact(
 ```{r}
 sessionInfo()
 ```
-

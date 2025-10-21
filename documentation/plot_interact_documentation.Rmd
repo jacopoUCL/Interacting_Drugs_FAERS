@@ -1,0 +1,210 @@
+---
+title: "Plotting frequency tables found in `interact()` output"
+date: "`r format(Sys.Date())`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plotting frequency tables found in interact() output}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+
+# library(ggplot2)
+# library(komega)
+```
+
+## Overview
+
+This vignette shows how to use `plot_interact_tables()` to **discover** and **plot** frequency-style tables inside the nested list returned by `interact()`. The function:
+
+* Recursively scans the object for data frames that look like frequency summaries.
+* Accepts both **2-column** (labels + counts) and **3-column** (labels + counts + percentages) tables, recognized by **types** (not column names).
+* Produces one **bar plot per table**, with bars **sorted in descending order** and **percentage labels** above each bar.
+* Applies a **distinct, colorful palette** to bars.
+* Truncates very long *drug-combination* x-axis labels using the rule:
+  `first + N drugs + last` (when there are more than 3 names joined by `+`).
+* Optionally saves each plot as a **PNG** (`save = TRUE`).
+
+## Installation
+
+Make sure your package imports or suggests the required packages:
+
+* `ggplot2` (required at runtime)
+* `knitr`, `rmarkdown` (for vignettes)
+
+In `DESCRIPTION`:
+
+```
+Suggests:
+    knitr,
+    rmarkdown,
+    ggplot2
+VignetteBuilder: knitr
+```
+
+## What gets detected?
+
+`plot_interact_tables()` looks for data frames with the following **shapes** and **types**:
+
+* **2 columns**
+
+  * Column 1: `character`/`factor` (labels)
+  * Column 2: integer-like counts (integers or numerics that are near whole numbers)
+  * Percentages are **computed** as `100 * count / sum(count)`
+
+* **3 columns**
+
+  * Column 1: `character`/`factor` (labels)
+  * Column 2: integer-like counts
+  * Column 3: **percentages**, parsed flexibly:
+
+    * numeric in `0–1` (treated as proportions and multiplied by 100), or
+    * numeric in `0–100`, or
+    * character like `"12.3%"` (comma decimals allowed)
+
+> Column **names don’t matter**; only the **types** and column **positions** do.
+
+All matching tables are standardized internally to columns:
+`names`, `frequencies`, `percentages`.
+
+## Label truncation for drug combinations
+
+When a label contains more than 3 components separated by `" + "` (e.g., combinations), the x-axis label is truncated as:
+
+```
+first + <n-2> drugs + last
+```
+
+For example:
+
+```
+"acetylsalicylic acid + buprenorphine + fentanyl + hydrocodone + hydromorphone + morphine + oxycodone + oxymorphone + paracetamol + tapentadol"
+```
+
+becomes
+
+```
+"acetylsalicylic acid + 8 drugs + tapentadol"
+```
+
+If truncation accidentally creates duplicates, the function makes the labels unique.
+
+## Plot styling
+
+* Bars are **sorted by descending frequency**.
+* Bars are colored with a **Brewer** palette (`"Paired"`).
+* Percentage labels (rounded to **1 decimal**) are displayed above each bar.
+* The x-axis text is angled for readability.
+
+## Basic usage
+
+In an **interactive session**, the function prompts you to select which detected tables to plot (by name), or you can choose `"all"`.
+
+```{r, eval=FALSE}
+
+# # Typical pipeline:
+# res <- interact(
+#   size = 1,
+#   substances = 1,
+#   reactions = 1,
+#   save = FALSE
+# )
+# 
+# # Prompt-driven selection; plots to the device; does not save files
+# plot_interact_tables(res)
+```
+
+In **non-interactive** contexts (e.g., scripts, R Markdown), set `ask = FALSE` to plot them all automatically, and `save = TRUE` to export to PNG:
+
+```{r, eval=FALSE}
+# plots <- plot_interact_tables(
+#   res,
+#   save    = TRUE,          # write PNGs
+#   out_dir = "plots/",      # directory will be created if missing
+#   ask     = FALSE          # no prompt; select all detected tables
+# )
+# 
+# # Access a particular ggplot by name
+# plots[["drugs_df"]]  # if such a table name exists
+```
+
+## Minimal reproducible example (without `interact()`)
+
+Below we create a small nested list that mimics part of an `interact()` output: one 2-column table and one 3-column table. You can run this example even if you don’t have FAERS data on hand.
+
+```{r}
+# # 2-column (labels + counts), percentages will be computed
+# tab2 <- data.frame(
+#   drug_combo = c(
+#     "A + B + C + D",
+#     "X",
+#     "Y + Z",
+#     "acetylsalicylic acid + buprenorphine + fentanyl + hydrocodone + hydromorphone + morphine + oxycodone + oxymorphone + paracetamol + tapentadol"
+#   ),
+#   n = c(50, 30, 20, 15),
+#   stringsAsFactors = FALSE
+# )
+# 
+# # 3-column (labels + counts + percentages as characters)
+# tab3 <- data.frame(
+#   name = c("alpha", "beta", "gamma", "delta"),
+#   count = c(100, 40, 25, 10),
+#   pct = c("58.8%", "23.5%", "14.7%", "2.9%"),
+#   stringsAsFactors = FALSE
+# )
+# 
+# # Nested structure that resembles an interact() result
+# fake_res <- list(
+#   top_comb = tab2,
+#   rankings = list(
+#     before = tab3
+#   )
+# )
+# 
+# # Plot all detected tables (no prompt here for the vignette)
+# plots <- plot_interact_tables(fake_res, ask = FALSE)
+# 
+# # Show one of them inline
+# plots[[1]]
+```
+
+## Saving plots as PNGs
+
+Set `save = TRUE` and specify `out_dir`. Filenames are created from the table names and sanitized (e.g., spaces replaced by underscores).
+
+```{r, eval=FALSE}
+# plot_interact_tables(fake_res, save = TRUE, out_dir = "png_plots", ask = FALSE)
+# #> Saved PNG: png_plots/top_comb.png
+# #> Saved PNG: png_plots/before.png
+```
+
+Each PNG is saved at **10 x 6 inches** with **300 dpi** and a white background.
+
+## Tips
+
+* Prefer concise labels when possible; the function’s truncation rule helps with very long combination names.
+* You can change the color palette by editing the call to `scale_fill_brewer(palette = "Paired")` in the function (e.g., `"Set3"`, `"Dark2"`).
+* If you want to persist the standardized data frames, modify the function to also return the processed tables alongside the plots.
+
+## Session info
+
+```{r}
+# sessionInfo()
+```
+
+---
+
+### Appendix: Function reference
+
+For full arguments and return value, see the function’s help page:
+
+```r
+?plot_interact_tables
+```

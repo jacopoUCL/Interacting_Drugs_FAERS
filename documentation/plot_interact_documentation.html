@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+<meta name="date" content="2025-10-21" />
+
+<title>Plotting frequency tables found in interact() output</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Plotting frequency tables found in
+<code>interact()</code> output</h1>
+<h4 class="date">2025-10-21</h4>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>This vignette shows how to use <code>plot_interact_tables()</code> to
+<strong>discover</strong> and <strong>plot</strong> frequency-style
+tables inside the nested list returned by <code>interact()</code>. The
+function:</p>
+<ul>
+<li>Recursively scans the object for data frames that look like
+frequency summaries.</li>
+<li>Accepts both <strong>2-column</strong> (labels + counts) and
+<strong>3-column</strong> (labels + counts + percentages) tables,
+recognized by <strong>types</strong> (not column names).</li>
+<li>Produces one <strong>bar plot per table</strong>, with bars
+<strong>sorted in descending order</strong> and <strong>percentage
+labels</strong> above each bar.</li>
+<li>Applies a <strong>distinct, colorful palette</strong> to bars.</li>
+<li>Truncates very long <em>drug-combination</em> x-axis labels using
+the rule: <code>first + N drugs + last</code> (when there are more than
+3 names joined by <code>+</code>).</li>
+<li>Optionally saves each plot as a <strong>PNG</strong>
+(<code>save = TRUE</code>).</li>
+</ul>
+</div>
+<div id="installation" class="section level2">
+<h2>Installation</h2>
+<p>Make sure your package imports or suggests the required packages:</p>
+<ul>
+<li><code>ggplot2</code> (required at runtime)</li>
+<li><code>knitr</code>, <code>rmarkdown</code> (for vignettes)</li>
+</ul>
+<p>In <code>DESCRIPTION</code>:</p>
+<pre><code>Suggests:
+    knitr,
+    rmarkdown,
+    ggplot2
+VignetteBuilder: knitr</code></pre>
+</div>
+<div id="what-gets-detected" class="section level2">
+<h2>What gets detected?</h2>
+<p><code>plot_interact_tables()</code> looks for data frames with the
+following <strong>shapes</strong> and <strong>types</strong>:</p>
+<ul>
+<li><p><strong>2 columns</strong></p>
+<ul>
+<li>Column 1: <code>character</code>/<code>factor</code> (labels)</li>
+<li>Column 2: integer-like counts (integers or numerics that are near
+whole numbers)</li>
+<li>Percentages are <strong>computed</strong> as
+<code>100 * count / sum(count)</code></li>
+</ul></li>
+<li><p><strong>3 columns</strong></p>
+<ul>
+<li><p>Column 1: <code>character</code>/<code>factor</code>
+(labels)</p></li>
+<li><p>Column 2: integer-like counts</p></li>
+<li><p>Column 3: <strong>percentages</strong>, parsed flexibly:</p>
+<ul>
+<li>numeric in <code>0–1</code> (treated as proportions and multiplied
+by 100), or</li>
+<li>numeric in <code>0–100</code>, or</li>
+<li>character like <code>&quot;12.3%&quot;</code> (comma decimals allowed)</li>
+</ul></li>
+</ul></li>
+</ul>
+<blockquote>
+<p>Column <strong>names don’t matter</strong>; only the
+<strong>types</strong> and column <strong>positions</strong> do.</p>
+</blockquote>
+<p>All matching tables are standardized internally to columns:
+<code>names</code>, <code>frequencies</code>,
+<code>percentages</code>.</p>
+</div>
+<div id="label-truncation-for-drug-combinations" class="section level2">
+<h2>Label truncation for drug combinations</h2>
+<p>When a label contains more than 3 components separated by
+<code>&quot; + &quot;</code> (e.g., combinations), the x-axis label is truncated
+as:</p>
+<pre><code>first + &lt;n-2&gt; drugs + last</code></pre>
+<p>For example:</p>
+<pre><code>&quot;acetylsalicylic acid + buprenorphine + fentanyl + hydrocodone + hydromorphone + morphine + oxycodone + oxymorphone + paracetamol + tapentadol&quot;</code></pre>
+<p>becomes</p>
+<pre><code>&quot;acetylsalicylic acid + 8 drugs + tapentadol&quot;</code></pre>
+<p>If truncation accidentally creates duplicates, the function makes the
+labels unique.</p>
+</div>
+<div id="plot-styling" class="section level2">
+<h2>Plot styling</h2>
+<ul>
+<li>Bars are <strong>sorted by descending frequency</strong>.</li>
+<li>Bars are colored with a <strong>Brewer</strong> palette
+(<code>&quot;Paired&quot;</code>).</li>
+<li>Percentage labels (rounded to <strong>1 decimal</strong>) are
+displayed above each bar.</li>
+<li>The x-axis text is angled for readability.</li>
+</ul>
+</div>
+<div id="basic-usage" class="section level2">
+<h2>Basic usage</h2>
+<p>In an <strong>interactive session</strong>, the function prompts you
+to select which detected tables to plot (by name), or you can choose
+<code>&quot;all&quot;</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co"># # Typical pipeline:</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># res &lt;- interact(</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#   size = 1,</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#   substances = 1,</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#   reactions = 1,</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#   save = FALSE</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co"># # Prompt-driven selection; plots to the device; does not save files</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co"># plot_interact_tables(res)</span></span></code></pre></div>
+<p>In <strong>non-interactive</strong> contexts (e.g., scripts, R
+Markdown), set <code>ask = FALSE</code> to plot them all automatically,
+and <code>save = TRUE</code> to export to PNG:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># plots &lt;- plot_interact_tables(</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#   res,</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#   save    = TRUE,          # write PNGs</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#   out_dir = &quot;plots/&quot;,      # directory will be created if missing</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#   ask     = FALSE          # no prompt; select all detected tables</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co"># # Access a particular ggplot by name</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co"># plots[[&quot;drugs_df&quot;]]  # if such a table name exists</span></span></code></pre></div>
+</div>
+<div id="minimal-reproducible-example-without-interact" class="section level2">
+<h2>Minimal reproducible example (without <code>interact()</code>)</h2>
+<p>Below we create a small nested list that mimics part of an
+<code>interact()</code> output: one 2-column table and one 3-column
+table. You can run this example even if you don’t have FAERS data on
+hand.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># # 2-column (labels + counts), percentages will be computed</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co"># tab2 &lt;- data.frame(</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#   drug_combo = c(</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#     &quot;A + B + C + D&quot;,</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#     &quot;X&quot;,</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#     &quot;Y + Z&quot;,</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#     &quot;acetylsalicylic acid + buprenorphine + fentanyl + hydrocodone + hydromorphone + morphine + oxycodone + oxymorphone + paracetamol + tapentadol&quot;</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#   ),</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#   n = c(50, 30, 20, 15),</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#   stringsAsFactors = FALSE</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co"># # 3-column (labels + counts + percentages as characters)</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co"># tab3 &lt;- data.frame(</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#   name = c(&quot;alpha&quot;, &quot;beta&quot;, &quot;gamma&quot;, &quot;delta&quot;),</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#   count = c(100, 40, 25, 10),</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#   pct = c(&quot;58.8%&quot;, &quot;23.5%&quot;, &quot;14.7%&quot;, &quot;2.9%&quot;),</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#   stringsAsFactors = FALSE</span></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="co"># # Nested structure that resembles an interact() result</span></span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="co"># fake_res &lt;- list(</span></span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a><span class="co">#   top_comb = tab2,</span></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#   rankings = list(</span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="co">#     before = tab3</span></span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="co">#   )</span></span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co"># )</span></span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co"># # Plot all detected tables (no prompt here for the vignette)</span></span>
+<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a><span class="co"># plots &lt;- plot_interact_tables(fake_res, ask = FALSE)</span></span>
+<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb7-32"><a href="#cb7-32" tabindex="-1"></a><span class="co"># # Show one of them inline</span></span>
+<span id="cb7-33"><a href="#cb7-33" tabindex="-1"></a><span class="co"># plots[[1]]</span></span></code></pre></div>
+</div>
+<div id="saving-plots-as-pngs" class="section level2">
+<h2>Saving plots as PNGs</h2>
+<p>Set <code>save = TRUE</code> and specify <code>out_dir</code>.
+Filenames are created from the table names and sanitized (e.g., spaces
+replaced by underscores).</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># plot_interact_tables(fake_res, save = TRUE, out_dir = &quot;png_plots&quot;, ask = FALSE)</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co"># #&gt; Saved PNG: png_plots/top_comb.png</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co"># #&gt; Saved PNG: png_plots/before.png</span></span></code></pre></div>
+<p>Each PNG is saved at <strong>10 x 6 inches</strong> with <strong>300
+dpi</strong> and a white background.</p>
+</div>
+<div id="tips" class="section level2">
+<h2>Tips</h2>
+<ul>
+<li>Prefer concise labels when possible; the function’s truncation rule
+helps with very long combination names.</li>
+<li>You can change the color palette by editing the call to
+<code>scale_fill_brewer(palette = &quot;Paired&quot;)</code> in the function
+(e.g., <code>&quot;Set3&quot;</code>, <code>&quot;Dark2&quot;</code>).</li>
+<li>If you want to persist the standardized data frames, modify the
+function to also return the processed tables alongside the plots.</li>
+</ul>
+</div>
+<div id="session-info" class="section level2">
+<h2>Session info</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># sessionInfo()</span></span></code></pre></div>
+<hr />
+<div id="appendix-function-reference" class="section level3">
+<h3>Appendix: Function reference</h3>
+<p>For full arguments and return value, see the function’s help
+page:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>?plot_interact_tables</span></code></pre></div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
