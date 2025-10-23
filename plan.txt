@@ -1,1 +1,1 @@
-TO DO:- update flowchart and write it down in draw.io and add it to documentation folder- update komega package and test it	. correct plots with specified indi, the sizes of dots must be proportional to the frequencies
+TO DO:
