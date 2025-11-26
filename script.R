@@ -47,11 +47,29 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 # Selection of reports with at least one interacting drug ----------------------
 # C = Concomitant - PS = Principal suspect - SS = Secondary suspect - I = Interacting
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
-pids_inter_susp <- unique(Drug[role_cod %in% c("SS", "I")]$primaryid) # 5.789.396
+# Unique combinations by primaryid and role_cod for all data
+write.xlsx(
+  Drug[, .SD[!duplicated(Drug, by = c("primaryid", "role_cod"))]]
+  [, .N, by = role_cod]
+  [, perc := round(N / sum(N) * 100, 2)]
+  [order(-N)],
+  overwrite = TRUE,
+  file = "results/roles_count.xlsx"
+)
+
+# Unique combinations by primaryid and role_cod for pids in pids_inter
+write.xlsx(
+  Drug[primaryid %in% pids_inter][
+    , .SD[!duplicated(.SD, by = c("primaryid", "role_cod"))]]
+  [, .N, by = role_cod]
+  [, perc := round(N / sum(N) * 100, 2)]
+  [order(-N)],
+  overwrite = TRUE,
+  file = "results/roles_count2.xlsx"
+)
 
 ## Count number of drugs per report within SS or I, with at least one I -----
-drug_counts_all <- Drug[primaryid %in% pids_inter & role_cod %in% c("SS", "I"), 
-                        .N, by = primaryid]
+drug_counts_all <- Drug[primaryid %in% pids_inter & role_cod %in% c("SS", "I"), .N, by = primaryid]
 setnames(drug_counts_all, "N", "total_drugs")
 
 # Table of reports by total_drugs for 95% cutoff
@@ -65,10 +83,8 @@ bars <- Drug[primaryid %in% pids_inter & role_cod %in% c("SS", "I")][
 ][, .(count = .N), by = .(total_drugs, role_cod)]
 
 # Tidy labels & percentages within each bar
-bars[, role_cod := factor(role_cod, levels = c("I", "SS"),
-                          labels = c("I", "SS"))]
-bars <- bars[, total := sum(count), by = total_drugs
-][, perc := round(100 * count / total, 1)][]
+bars[, role_cod := factor(role_cod, levels = c("I", "SS"), labels = c("I", "SS"))]
+bars <- bars[, total := sum(count), by = total_drugs][, perc := round(100 * count / total, 1)][]
 
 # Compute y-axis top
 labels_df <- bars[, .(count = sum(count)), by = total_drugs]
@@ -129,7 +145,10 @@ p1 <- ggplot(bars, aes(x = total_drugs, y = count, fill = role_cod)) +
            hjust = 0, size = 3.5, color = "black")
            
 ## Count number of drugs per report within PS, SS, C or I, with at least one I -----
-drug_counts_all_2 <- Drug[primaryid %in% pids_inter & !is.na(role_cod),.N, by = primaryid]
+Drug_susp <- copy(Drug)
+Drug_susp[role_cod %in% c("PS", "SS"), role_cod := "S"]
+Drug_susp[, role_cod := factor(role_cod, levels = c(C = "C", I = "I", S = "S"))]
+drug_counts_all_2 <- Drug_susp[primaryid %in% pids_inter & !is.na(role_cod),.N, by = primaryid]
 setnames(drug_counts_all_2, "N", "total_drugs")
 
 # table of reports by total_drugs (for 95% cutoff on reports)
@@ -138,15 +157,13 @@ tab_2[, cumprop := cumsum(N) / sum(N)]
 cutoffN_2 <- tab_2[cumprop >= 0.95, min(total_drugs)]
 
 # join total_drugs to each drug row, then count drugs by total_drugs and role_cod
-bars_2 <- Drug[primaryid %in% pids_inter & !is.na(role_cod)][
+bars_2 <- Drug_susp[primaryid %in% pids_inter & !is.na(role_cod)][
   drug_counts_all_2, on = "primaryid"
 ][, .(count = .N), by = .(total_drugs, role_cod)]
 
 # tidy labels & percentages within each bar
-bars_2[, role_cod := factor(role_cod, levels = c("PS", "SS", "I", "C"), 
-                            labels = c("PS", "SS", "I", "C"))]
-bars_2 <- bars_2[, total := sum(count), by = total_drugs
-][, perc := round(100 * count / total, 1)][]
+bars_2[, role_cod := factor(role_cod, levels = c("S", "I", "C"), labels = c("S", "I", "C"))]
+bars_2 <- bars_2[, total := sum(count), by = total_drugs][, perc := round(100 * count / total, 1)][]
 
 # y-axis ceiling based on total number of drugs per bar
 labels_df_2 <- bars_2[, .(count = sum(count)), by = total_drugs]
@@ -165,6 +182,17 @@ if (is.factor(bars_2$total_drugs)) {
   totals_2$total_drugs <- factor(totals_2$total_drugs, levels = levels(bars_2$total_drugs))
 }
 
+# Frequencies per role (exactly as in your example)
+freq_roles <- Drug_susp[primaryid %in% pids_inter][
+  , .SD[!duplicated(.SD, by = c("primaryid", "role_cod"))]][
+    , .N, by = role_cod][
+      , perc := round(N / sum(N) * 100, 2)][
+        order(-N)]
+
+# Convenience: pull N and perc into a named list/vector
+getN   <- function(role) freq_roles[role_cod == role, N]
+getPct <- function(role) freq_roles[role_cod == role, perc]
+
 p2 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
   geom_col(position = "stack") +
   geom_segment(aes(x = cutoffN_2, xend = cutoffN_2, y = 0, yend = y_top_2 - 1),
@@ -172,14 +200,13 @@ p2 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
   geom_text(aes(x = cutoffN_2 + 0.2, y = y_top_2 - 50, 
                 label = "95% of reports"), 
             hjust = 0, size = 3, color = "black") +
-  labs(x = "Number of drugs (PS or SS or I or C)",
+  labs(x = "Number of drugs (S (PS or SS) or I or C)",
        y = "Number of reports (pids)", fill = "Drug role") +
   scale_x_continuous(breaks = 0:25, limits = c(0, 25),
                      expand = expansion(mult = c(0, 0.02))) +
   scale_y_continuous(breaks = seq(0, y_top_2, by = step_guess),
                      limits = c(0, y_top_2 + step_guess * 0.25)) +
-  scale_fill_manual(values = c("I" = "steelblue", "SS" = "grey70",
-                               "PS" = "lightgreen", "C" = "orange")) +
+  scale_fill_manual(values = c("I" = "steelblue", "S" = "lightgreen", "C" = "orange")) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   # segment percentages (per role)
@@ -198,26 +225,28 @@ p2 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
     fontface = "bold",
     color = "black",
     inherit.aes = FALSE
-  ) + 
-  # geom text on the top right corner with total number of reports with at least one I and total number of reports
-  annotate("text", x = 19.5, y = y_top_2*0.75, 
-           label = paste0("Within total reports with at least one I: ", formatC(sum(totals_2$count_total), format = "d", big.mark = ","), 
-                          "\n- At least one PS: ", 
-                          formatC(sum(bars_2$count[bars_2$role_cod == "PS"]), format = "d", big.mark = ","),
-                          "\n- At least one SS: ", 
-                          formatC(sum(bars_2$count[bars_2$role_cod == "SS"]), format = "d", big.mark = ","),
-                          "\n- At least one C: ",
-                          formatC(sum(bars_2$count[bars_2$role_cod == "C"]), format = "d", big.mark = ","),
-                          "\n- No PS, SS or C: ",
-                          formatC(sum(bars_2$count[bars_2$role_cod == "I"]), format = "d", big.mark = ",")),
-           hjust = 0, size = 3.5, color = "black")
+  ) +
+  # Top-right annotation using freq_roles
+  annotate(
+    "text",
+    x = 19.5, y = y_top_2 * 0.75,
+    label = paste0(
+      "Within total reports with at least one I: ",
+      "\n- At least one I: ", 
+      formatC(getN("I"), format = "d", big.mark = ","),
+      "\n- At least one S: ",
+      formatC(getN("S"), format = "d", big.mark = ","),
+      "\n- At least one C: ",
+      formatC(getN("C"), format = "d", big.mark = ",")
+    ), hjust = 0, size = 3.5, color = "black"
+  )
 
 p1 / p2 + plot_layout(heights = c(1, 1.2)) + 
   plot_annotation(title = "Reports by number of reported drugs", 
                   subtitle = "(1986-2024)")
 
 ## Plot only roles trend per numbers of reported drugs
-ggplot(bars_2, aes(x = total_drugs, y = perc, 
+p3 <- ggplot(bars_2, aes(x = total_drugs, y = perc, 
                    group = role_cod, color = role_cod)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3) +
@@ -225,17 +254,17 @@ ggplot(bars_2, aes(x = total_drugs, y = perc,
                      expand = expansion(mult = c(0, 0.02))) +
   scale_y_continuous(breaks = seq(0, 60, by = 5),
                      limits = c(0, 60)) +
-  labs(title = "Percentages by drug role per number of reported drugs",
-       subtitle = "Reports with at least one interacting drug (I)",
-       x = "Number of drugs (PS or SS or I or C)",
+  labs(x = "Number of drugs (S (PS or SS) or I or C)",
        y = "% by drug role", color = "Drug role") +
-  scale_color_manual(values = c("I" = "steelblue", 
-                                "SS" = "grey70",
-                                "PS" = "lightgreen", 
+  scale_color_manual(values = c("I" = "steelblue",
+                                "S" = "lightgreen", 
                                 "C" = "orange")) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+p2 / p3 + plot_layout(heights = c(1, 1.2)) + 
+  plot_annotation(title = "Reports by number of reported drugs and roles", 
+                  subtitle = "(1986-2024, Reports with at least one interacting drug (I))")
 
 # Descriptive - all data -----
 descriptive(pids_inter, file_name = "results/Descriptive_all_data.xlsx")
