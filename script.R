@@ -1,5 +1,5 @@
 # Authors: Jacopo Palombarini, Angela Boccia
-# Date: 13/10/2025
+# Last update: 26/11/2025
 
 # Setup -----
 # Packages  -----
@@ -47,6 +47,7 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 # Selection of reports with at least one interacting drug ----------------------
 # C = Concomitant - PS = Principal suspect - SS = Secondary suspect - I = Interacting
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
+pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
 # Unique combinations by primaryid and role_cod for all data
 write.xlsx(
   Drug[, .SD[!duplicated(Drug, by = c("primaryid", "role_cod"))]]
@@ -267,10 +268,12 @@ p2 / p3 + plot_layout(heights = c(1, 1.2)) +
                   subtitle = "(1986-2024, Reports with at least one interacting drug (I))")
 
 # Descriptive - all data -----
-descriptive(pids_inter, file_name = "results/Descriptive_all_data.xlsx")
+descriptive(pids_non_inter, file_name = "results/Descriptive_all_data_non_inter.xlsx")
+descriptive(pids_inter, file_name = "results/Descriptive_all_data_inter.xlsx")
   
 # Most reported interacting drugs -----
 Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
+Drug_inter_count$perc <- round(Drug_inter_count$N / sum(Drug_inter_count$N), 3) * 100
 Drug_inter_count <- Drug_inter_count[1:10, ]
 write.xlsx(Drug_inter_count, file = "results/Most_reported_interacting_drugs.xlsx")
 
@@ -472,6 +475,204 @@ descriptive(pids_cases = pids_10_inter, drug = "furosemide", file_name = "result
             vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
                      "Indications", "Substances", "role_cod", "time_to_onset", "year"))
 
+# Chuisq. test ----------------------
+clean_desc <- function(path){
+  read_excel(path) %>%
+    select(`**Characteristic**`, N_cases) %>%
+    mutate(N_cases = as.numeric(gsub(",", "", N_cases))) %>%
+    pivot_wider(
+      names_from = `**Characteristic**`,
+      values_from = N_cases
+    ) %>%
+    select(-c(Unknown, N))
+}
+
+files <- c(
+  int = "results/Descriptive_all_data_inter.xlsx",
+  non_int = "results/Descriptive_all_data_non_inter.xlsx"
+)
+
+dfs <- lapply(files, clean_desc)
+dfs$int <- dfs$int[,c(1:35, 167:173)]
+dfs$non_int <- dfs$non_int[,c(1:35, 283:289)]
+
+# sex 
+tab_sex <- rbind(Int   = c(Male = as.numeric(dfs$int$Male[1]),   Female = as.numeric(dfs$int$Female[1])),
+           Non_int = c(Male = as.numeric(dfs$non_int$Male[1]), Female = as.numeric(dfs$non_int$Female[1])))
+tab_sex <- as.data.frame.matrix(t)
+test_sex <- chisq.test(tab_sex)
+test_sex$residuals
+test_sex$p.value
+
+# age range
+tab_age <- rbind(Int = c(`Neonate (<28d)` = as.numeric(dfs$int$`Neonate (<28d)`[1]),
+                         `Infant (28d-1y)` = as.numeric(dfs$int$`Infant (28d-1y)`[1]),
+                         `Child (2y-11y)` = as.numeric(dfs$int$`Child (2y-11y)`[1]),
+                         `Teenager (12y-17y)` = as.numeric(dfs$int$`Teenager (12y-17y)`[1]),
+                         `Adult (18y-29y)` = as.numeric(dfs$int$`Adult (18y-29y)`[1]),
+                         `Adult (30y-49y)` = as.numeric(dfs$int$`Adult (30y-49y)`[1]),
+                         `Adult (50y-64y)` = as.numeric(dfs$int$`Adult (50y-64y)`[1]),
+                         `Elderly (65y-74y)` = as.numeric(dfs$int$`Elderly (65y-74y)`[1]),
+                         `Elderly (75y-84y)` = as.numeric(dfs$int$`Elderly (75y-84y)`[1]),
+                         `Elderly (85y-99y)` = as.numeric(dfs$int$`Elderly (85y-99y)`[1]),
+                         `Elderly (>99y)` = as.numeric(dfs$int$`Elderly (>99y)`[1])),
+                 Non_int = c(`Neonate (<28d)` = as.numeric(dfs$non_int$`Neonate (<28d)`[1]),
+                             `Infant (28d-1y)` = as.numeric(dfs$non_int$`Infant (28d-1y)`[1]),
+                             `Child (2y-11y)` = as.numeric(dfs$non_int$`Child (2y-11y)`[1]),
+                             `Teenager (12y-17y)` = as.numeric(dfs$non_int$`Teenager (12y-17y)`[1]),
+                             `Adult (18y-29y)` = as.numeric(dfs$non_int$`Adult (18y-29y)`[1]),
+                             `Adult (30y-49y)` = as.numeric(dfs$non_int$`Adult (30y-49y)`[1]),
+                             `Adult (50y-64y)` = as.numeric(dfs$non_int$`Adult (50y-64y)`[1]),
+                             `Elderly (65y-74y)` = as.numeric(dfs$non_int$`Elderly (65y-74y)`[1]),
+                             `Elderly (75y-84y)` = as.numeric(dfs$non_int$`Elderly (75y-84y)`[1]),
+                             `Elderly (85y-99y)` = as.numeric(dfs$non_int$`Elderly (85y-99y)`[1]),
+                             `Elderly (>99y)` = as.numeric(dfs$non_int$`Elderly (>99y)`[1])))
+
+tab_age <- as.data.frame.matrix(tab_age)
+
+test_age <- chisq.test(tab_age)
+test_age$residuals
+test_age$p.value
+
+# Outcome
+tab_out <- rbind(Int = c(Death = as.numeric(dfs$int$Death[1]),
+                         `Life threatening` = as.numeric(dfs$int$`Life threatening`[1]),
+                         Disability = as.numeric(dfs$int$Disability[1]),
+                         `Required intervention` = as.numeric(dfs$int$`Required intervention`[1]),
+                         Hospitalization = as.numeric(dfs$int$Hospitalization[1]),
+                         `Congenital anomaly` = as.numeric(dfs$int$`Congenital anomaly`[1]),
+                         `Other serious` = as.numeric(dfs$int$`Other serious`[1]),
+                         `Non Serious` = as.numeric(dfs$int$`Non Serious`[1])),
+  
+                 Non_int = c(Death = as.numeric(dfs$non_int$Death[1]),
+                             `Life threatening` = as.numeric(dfs$non_int$`Life threatening`[1]),
+                             Disability = as.numeric(dfs$non_int$Disability[1]),
+                             `Required intervention` = as.numeric(dfs$non_int$`Required intervention`[1]),
+                             Hospitalization = as.numeric(dfs$non_int$Hospitalization[1]),
+                             `Congenital anomaly` = as.numeric(dfs$non_int$`Congenital anomaly`[1]),
+                             `Other serious` = as.numeric(dfs$non_int$`Other serious`[1]),
+                             `Non Serious` = as.numeric(dfs$non_int$`Non Serious`[1])))
+
+tab_out <- as.data.frame.matrix(tab_out)
+
+test_out <- chisq.test(tab_out)
+test_out$residuals
+test_out$p.value
+
+# Continent
+tab_con <- rbind(Int = c(`North America` = as.numeric(dfs$int$`North America`[1]),
+                         Europe = as.numeric(dfs$int$Europe[1]),
+                         Asia = as.numeric(dfs$int$Asia[1]),
+                         `South America` = as.numeric(dfs$int$`South America`[1]),
+                         Oceania = as.numeric(dfs$int$Oceania[1]),
+                         Africa = as.numeric(dfs$int$Africa[1])),
+  
+                 Non_int = c(`North America` = as.numeric(dfs$non_int$`North America`[1]),
+                             Europe = as.numeric(dfs$non_int$Europe[1]),
+                             Asia = as.numeric(dfs$non_int$Asia[1]),
+                             `South America` = as.numeric(dfs$non_int$`South America`[1]),
+                             Oceania = as.numeric(dfs$non_int$Oceania[1]),
+                             Africa = as.numeric(dfs$non_int$Africa[1])))
+
+tab_con <- as.data.frame.matrix(tab_con)
+
+test_con <- chisq.test(tab_con)
+test_con$residuals
+test_con$p.value
+
+# summary
+tab_pvals <- data.frame(Variable = c("Sex", "Age", "Outcome", "Continent"),
+                        p_value  = c(test_sex$p.value, test_age$p.value,
+                                     test_out$p.value, test_con$p.value))
+tab_pvals$signif <- cut(tab_pvals$p_value,
+                        breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
+                        labels = c("***", "**", "*", "ns"))
+# Plots
+plot_residuals <- function(resid_mat, title) {
+  df_resid <- as.data.frame(resid_mat)
+  df_resid$Group <- rownames(df_resid)
+  
+  df_long <- df_resid |>
+    pivot_longer(
+      cols      = -Group,
+      names_to  = "Category",
+      values_to = "Residual"
+    )
+  
+  ggplot(df_long, aes(x = Category, y = Group, fill = Residual)) +
+    geom_tile() +
+    geom_text(aes(label = round(Residual, 1))) +
+    scale_fill_gradient2(
+      midpoint = 0,
+      low = "blue",
+      mid = "white",
+      high = "red"
+    ) +
+    labs(
+      title = title,
+      x = NULL,
+      y = NULL,
+      fill = "Std. residual"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+}
+fig_all <- plot_residuals(test_sex$residuals, "Sex") + 
+  plot_residuals(test_age$residuals, "Age") +
+  plot_residuals(test_out$residuals, "Outcome") +
+  plot_residuals(test_con$residuals, "Continent") +
+  plot_layout(ncol = 2)
+fig_all + plot_annotation(title = "Standardized Residuals Across Key Variables")
+ggsave("results/plots/residuals_all.png", fig_all, width = 12, height = 10, dpi = 300)
+
+
+# Cramer's V of imbalance
+cramers_v <- function(tab) {
+  chi       <- suppressWarnings(chisq.test(tab, correct = FALSE))
+  N         <- sum(tab)
+  k         <- min(nrow(tab), ncol(tab))
+  V         <- sqrt(chi$statistic / (N * (k - 1)))
+  as.numeric(V)
+}
+cramers_v_sex      <- cramers_v(tab_sex)
+cramers_v_age      <- cramers_v(tab_age)
+cramers_v_outcome  <- cramers_v(tab_out)
+cramers_v_continent<- cramers_v(tab_con)
+
+tab_effect <- data.frame(Variable  = c("Sex", "Age", "Outcome", "Continent"),
+                         Cramers_V = c(cramers_v_sex, cramers_v_age, 
+                                       cramers_v_outcome, cramers_v_continent))
+
+final_tab <- cbind(tab_pvals[,-3], CramerV = tab_effect$Cramers_V)
+write.xlsx(final_tab, file = "results/chisq_test.xlsx")
+
+# save tables
+wb <- createWorkbook()
+add_chi_sheet <- function(wb, sheet_name, test_object, table_object) {
+  addWorksheet(wb, sheet_name)
+  writeData(wb, sheet_name, "Observed counts:", startRow = 1, startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(table_object), startRow = 2, startCol = 1)
+  
+  writeData(wb, sheet_name, "Expected counts:", startRow = 5 + nrow(table_object), startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$expected, 2)), 
+            startRow = 6 + nrow(table_object), startCol = 1)
+  
+  writeData(wb, sheet_name, "Standardized residuals:", startRow = 9 + 2*nrow(table_object), startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$residuals, 2)), 
+            startRow = 10 + 2*nrow(table_object), startCol = 1)
+  
+  writeData(wb, sheet_name, paste("p-value:", test_object$p.value), 
+            startRow = 12 + 3*nrow(table_object), startCol = 1)
+}
+add_chi_sheet(wb, "Sex", test_sex, t(tab_sex))
+add_chi_sheet(wb, "Age", test_age, t(tab_age))
+add_chi_sheet(wb, "Outcome", test_out, t(tab_out))
+add_chi_sheet(wb, "Continent", test_con, t(tab_con))
+saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
+
+
 ## ADR -----
 # Count ADR repetitions for interacting drugs ---------------------
 Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
@@ -665,26 +866,35 @@ for (i in seq_along(int_indi)) {
 saveWorkbook(wb, "results/Most_reported_interacfting_drugs_most_reported_indications.xlsx", overwrite = TRUE)
 
 # Plot for interacting drugs by classes -----
+# Interacting drugs count per substance
+Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
 atc_inter <- ATC[substance %in% Drug_inter_count$substance]
 atc_inter_drug <- left_join(Drug_inter_count, atc_inter,  by = "substance")
 
-# Class 1
+Drug_total_count <- Drug[!is.na(substance), .N, by= .(substance)]
+atc_total <- ATC[substance %in% Drug_total_count$substance]
+atc_total_drug <- left_join(Drug_total_count, atc_total,  by = "substance")
+
 atc_inter_drug_c1 <- atc_inter_drug %>%
   group_by(Class1) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class1) %>% summarise(Total = sum(N)),
+    by = "Class1"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class1)) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c1, aes(x = reorder(Class1, -N), y = N)) +
   geom_bar(stat = "identity", fill = grDevices::rainbow(nrow(atc_inter_drug_c1))) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), 
+            vjust = -0.5, size = 3) +
   labs(title = "Count of Interacting Drugs by ATC Class 1",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 
 # Class 2
 # Nervous
@@ -706,7 +916,6 @@ ggplot(atc_inter_drug_c2_ner, aes(x = reorder(Class2, -N), y = N)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-
 # Cardiovascular
 cl2_car <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[2]]$Class2)
 
@@ -720,13 +929,14 @@ atc_inter_drug_c2_car <- atc_inter_drug %>%
 
 ggplot(atc_inter_drug_c2_car, aes(x = reorder(Class2, -N), y = N)) +
   geom_bar(stat = "identity", fill = grDevices::rainbow(9)[2]) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Cardiovascular System)",
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Nervous System)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Antiinfectives
+
+# Antinfectives
 cl2_ant <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[3]]$Class2)
 
 atc_inter_drug_c2_ant <- atc_inter_drug %>%
@@ -739,14 +949,52 @@ atc_inter_drug_c2_ant <- atc_inter_drug %>%
 
 ggplot(atc_inter_drug_c2_ant, aes(x = reorder(Class2, -N), y = N)) +
   geom_bar(stat = "identity", fill = grDevices::rainbow(15)[3]) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Antiinfectives)",
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Immunomodulating)",
+       x = "ATC Class",
+       y = "Count of Interacting Drugs") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Immunomodulating
+cl2_imm <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[4]]$Class2)
+
+atc_inter_drug_c2_imm <- atc_inter_drug %>%
+  group_by(Class2) %>%
+  summarise(N = sum(N, na.rm = TRUE)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  filter(!is.na(Class2) & Class2 %in% cl2_imm) %>%
+  arrange(desc(N))
+
+ggplot(atc_inter_drug_c2_imm, aes(x = reorder(Class2, -N), y = N)) +
+  geom_bar(stat = "identity", fill = grDevices::rainbow(15)[4]) +
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Immunomodulating)",
+       x = "ATC Class",
+       y = "Count of Interacting Drugs") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Blood
+cl2_blo <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[5]]$Class2)
+
+atc_inter_drug_c2_blo <- atc_inter_drug %>%
+  group_by(Class2) %>%
+  summarise(N = sum(N, na.rm = TRUE)) %>%
+  ungroup() %>%
+  as.data.frame() %>%
+  filter(!is.na(Class2) & Class2 %in% cl2_blo) %>%
+  arrange(desc(N))
+
+ggplot(atc_inter_drug_c2_blo, aes(x = reorder(Class2, -N), y = N)) +
+  geom_bar(stat = "identity", fill = grDevices::rainbow(9)[5]) +
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Blood system)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
-# and so on ...
+
 
 
 # Plot trend for most reported interacting drugs -----
