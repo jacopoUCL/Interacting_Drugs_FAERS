@@ -17,6 +17,7 @@ library(readxl)
 library(dplyr)
 library(tidyr)
 library(tibble)
+library(RColorBrewer)
 
 # DiAna setup -----
 FAERS_version <- "24Q4"
@@ -886,10 +887,12 @@ atc_inter_drug_c1 <- atc_inter_drug %>%
   filter(!is.na(Class1)) %>%
   arrange(desc(N))
 
-ggplot(atc_inter_drug_c1, aes(x = reorder(Class1, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(nrow(atc_inter_drug_c1))) +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), 
+ggplot(atc_inter_drug_c1, aes(x = reorder(Class1, -N), y = N, fill = Class1)) +
+  geom_col() +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")),
             vjust = -0.5, size = 3) +
+  scale_fill_manual(values = colorRampPalette(brewer.pal(12, "Set2"))(nrow(atc_inter_drug_c1)),
+                    guide = "none") +
   labs(title = "Count of Interacting Drugs by ATC Class 1",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
@@ -903,13 +906,17 @@ cl2_ner <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[1]]$Class2)
 atc_inter_drug_c2_ner <- atc_inter_drug %>%
   group_by(Class2) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
+    by = "Class2"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class2) & Class2 %in% cl2_ner) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c2_ner, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(9)[1]) +
+  geom_bar(stat = "identity", fill = "#F4D055") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
   labs(title = "Count of Interacting Drugs by ATC Class 2 (Nervous System)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
@@ -922,14 +929,18 @@ cl2_car <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[2]]$Class2)
 atc_inter_drug_c2_car <- atc_inter_drug %>%
   group_by(Class2) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
+    by = "Class2"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class2) & Class2 %in% cl2_car) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c2_car, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(9)[2]) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Nervous System)",
+  geom_bar(stat = "identity", fill = "#9A9CC9") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Cardiovascular System)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
   theme_minimal() +
@@ -942,14 +953,18 @@ cl2_ant <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[3]]$Class2)
 atc_inter_drug_c2_ant <- atc_inter_drug %>%
   group_by(Class2) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
+    by = "Class2"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class2) & Class2 %in% cl2_ant) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c2_ant, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(15)[3]) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Immunomodulating)",
+  geom_bar(stat = "identity", fill = "#CDBCA2") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
+  labs(title = "Count of Interacting Drugs by ATC Class 2 (Antinfectives)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
   theme_minimal() +
@@ -961,13 +976,17 @@ cl2_imm <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[4]]$Class2)
 atc_inter_drug_c2_imm <- atc_inter_drug %>%
   group_by(Class2) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
+    by = "Class2"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class2) & Class2 %in% cl2_imm) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c2_imm, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(15)[4]) +
+  geom_bar(stat = "identity", fill = "#C1D848") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
   labs(title = "Count of Interacting Drugs by ATC Class 2 (Immunomodulating)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
@@ -980,13 +999,17 @@ cl2_blo <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[5]]$Class2)
 atc_inter_drug_c2_blo <- atc_inter_drug %>%
   group_by(Class2) %>%
   summarise(N = sum(N, na.rm = TRUE)) %>%
-  ungroup() %>%
-  as.data.frame() %>%
+  left_join(
+    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
+    by = "Class2"
+  ) %>%
+  mutate(Percent = 100 * N / Total) %>%
   filter(!is.na(Class2) & Class2 %in% cl2_blo) %>%
   arrange(desc(N))
 
 ggplot(atc_inter_drug_c2_blo, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = grDevices::rainbow(9)[5]) +
+  geom_bar(stat = "identity", fill = "#B798A2") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
   labs(title = "Count of Interacting Drugs by ATC Class 2 (Blood system)",
        x = "ATC Class",
        y = "Count of Interacting Drugs") +
