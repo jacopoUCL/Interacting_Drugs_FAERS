@@ -878,147 +878,415 @@ atc_total_drug <- left_join(Drug_total_count, atc_total,  by = "substance")
 
 atc_inter_drug_c1 <- atc_inter_drug %>%
   group_by(Class1) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class1) %>% summarise(Total = sum(N)),
-    by = "Class1"
-  ) %>%
-  mutate(Percent = 100 * N / Total) %>%
+  summarise(N = sum(N, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(Class1)) %>%
   arrange(desc(N))
 
-ggplot(atc_inter_drug_c1, aes(x = reorder(Class1, -N), y = N, fill = Class1)) +
-  geom_col() +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")),
-            vjust = -0.5, size = 3) +
-  scale_fill_manual(values = colorRampPalette(brewer.pal(12, "Set2"))(nrow(atc_inter_drug_c1)),
-                    guide = "none") +
-  labs(title = "Count of Interacting Drugs by ATC Class 1",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top_classes <- atc_inter_drug_c1$Class1[1:8]
+
+drug_counts <- atc_inter_drug %>%
+  filter(Class1 %in% top_classes) %>%
+  group_by(Class1, substance) %>%
+  summarise(N_sub = sum(N, na.rm = TRUE), .groups = "drop")
+
+class_k <- drug_counts %>%
+  group_by(Class1) %>%
+  summarise(N_class = sum(N_sub), .groups = "drop") %>%
+  mutate(
+    k = pmax(1L, floor(N_class / 20000) * 3)
+  )
+
+drug_with_rank <- drug_counts %>%
+  left_join(class_k, by = "Class1") %>%
+  group_by(Class1) %>%
+  arrange(desc(N_sub), .by_group = TRUE) %>%
+  mutate(
+    rank   = row_number(),
+    is_top = rank <= k
+  ) %>%
+  ungroup()
+
+top_df <- drug_with_rank %>%
+  filter(is_top) %>%
+  select(Class1, substance, N_sub)
+
+others_df <- drug_with_rank %>%
+  filter(!is_top) %>%
+  group_by(Class1) %>%
+  summarise(N_sub = sum(N_sub), .groups = "drop") %>%
+  mutate(substance = "Others")
+
+others_df <- others_df %>% filter(N_sub > 0)
+
+strata_df <- bind_rows(top_df, others_df) %>%
+  mutate(
+    Class1   = factor(Class1, levels = top_classes),
+    substance = as.factor(substance)
+  )
+
+class1_levels <- strata_df %>%
+  group_by(substance) %>%
+  summarise(N_tot = sum(N_sub), .groups = "drop") %>%
+  arrange(N_tot) %>%
+  pull(substance)
+class1_levels <- c("Others", setdiff(class1_levels, "Others"))
+
+strata_df <- strata_df %>%
+  mutate(substance = factor(substance, levels = class1_levels))
+
+pastel_palette <- c(
+  "#E3F2FD", "#D0E6FB", "#BBDAF8", "#A6CEF4",
+  "#90C2F0", "#7BB7EC", "#66ABE8", "#529FE4",
+  "#D7F1FA", "#C3E9F7", "#AFE1F4", "#9BD9F0",
+  "#87D1ED", "#73C9E9",
+  "#E0F7FA", "#CCF1F5", "#B8EBF0", "#A4E5EB",
+  "#90DFE6", "#7CD9E1",
+  "#E8F5E9", "#D6ECD7", "#C5E3C6", "#B3DAB5",
+  "#A2D1A4", "#90C893", "#7FBF82", "#6DB671",
+  "#FFF8E1", "#FFF1CC", "#FFEAB7", "#FFE3A3",
+  "#FFDC8E", "#FFD57A",
+  "#FFEBD6", "#FFE0C2", "#FFD5AE", "#FFC899",
+  "#FFBC85", "#FFAF70",
+  "#FCE4EC", "#F8D1E0", "#F4BED4", "#F0ABC8", "#EC98BC",
+  "#F3E5F5", "#E5CEF0", "#D7B8EB",
+  "#ECEFF1", "#D6DCE0"
+)
+
+p0 <- ggplot(strata_df, aes(x = Class1, y = N_sub, fill = substance)) +
+  geom_col(color = "black", linewidth = 0.15) +
+  geom_text(
+    aes(label = substance),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    fontface = "bold",
+    color = "black") +
+  guides(fill = "none") +
+  labs(
+    title = "Interacting Drugs by ATC Class 1",
+    x     = "ATC Class",
+    y     = "Count of Interacting Drugs") +
+  theme_void() +
+  theme(
+    axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
+    axis.title.x  = element_text(size = 10, face = "bold"),
+    axis.text   = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
+    plot.title  = element_text(size = 10, face = "bold")) +
+  scale_fill_manual(values = pastel_palette)
+
+ggsave("results/plots/plot0.tiff", plot = last_plot(), width = 12, height = 8, units = "in", dpi = 1000, compression = "lzw")
 
 # Class 2
-# Nervous
+# Class 2 - Nervous
 cl2_ner <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[1]]$Class2)
 
-atc_inter_drug_c2_ner <- atc_inter_drug %>%
+drug_counts_ner <- atc_inter_drug %>%
+  filter(Class2 %in% cl2_ner) %>%
+  group_by(Class2, substance) %>%
+  summarise(N_sub = sum(N, na.rm = TRUE), .groups = "drop")
+
+class2_k_ner <- drug_counts_ner %>%
   group_by(Class2) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
-    by = "Class2"
+  summarise(N_class = sum(N_sub), .groups = "drop") %>%
+  mutate(
+    k = pmax(1L, c(7, 1, 1, 6, 1, 11, 12))
+  )
+
+drug_with_rank_ner <- drug_counts_ner %>%
+  left_join(class2_k_ner, by = "Class2") %>%
+  group_by(Class2) %>%
+  arrange(desc(N_sub), .by_group = TRUE) %>%
+  mutate(
+    rank   = row_number(),
+    is_top = rank <= k
   ) %>%
-  mutate(Percent = 100 * N / Total) %>%
-  filter(!is.na(Class2) & Class2 %in% cl2_ner) %>%
-  arrange(desc(N))
+  ungroup()
 
-ggplot(atc_inter_drug_c2_ner, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = "#F4D055") +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Nervous System)",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top_df_ner <- drug_with_rank_ner %>%
+  filter(is_top) %>%
+  select(Class2, substance, N_sub)
 
-# Cardiovascular
+others_df_ner <- drug_with_rank_ner %>%
+  filter(!is_top) %>%
+  group_by(Class2) %>%
+  summarise(N_sub = sum(N_sub), .groups = "drop") %>%
+  mutate(substance = "Others") %>%
+  filter(N_sub > 0)
+
+strata_df_ner <- bind_rows(top_df_ner, others_df_ner) %>%
+  left_join(class2_k_ner, by = "Class2") %>%
+  mutate(
+    Class2 = factor(Class2, levels = unique(Class2[order(-N_class)])),
+    substance = as.factor(substance)
+  ) %>%
+  select(-N_class, -k)
+
+ner_levels <- strata_df_ner %>%
+  group_by(substance) %>%
+  summarise(N_tot = sum(N_sub), .groups = "drop") %>%
+  arrange(-1*N_tot) %>%
+  pull(substance)
+ner_levels <- c("Others", setdiff(ner_levels, "Others"))
+
+strata_df_ner <- strata_df_ner %>%
+  mutate(substance = factor(substance, levels = ner_levels))
+
+p1 <- ggplot(strata_df_ner, aes(x = Class2, y = N_sub, fill = substance)) +
+  geom_col(color = "black", linewidth = 0.15) +
+  geom_text(
+    aes(label = substance),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    fontface = "bold",
+    color = "black") +
+  guides(fill = "none") +
+  labs(
+    title = "Interacting Drugs by ATC Class 2 (Nervous System)",
+    x     = "ATC Class 2",
+    y     = "Count of Interacting Drugs") +
+  theme_void() +
+  theme(
+    axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
+    axis.title.x  = element_text(size = 10, face = "bold"),
+    axis.text   = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
+    plot.title  = element_text(size = 10, face = "bold")) +
+  scale_fill_manual(values = pastel_palette)
+
+# Class 2 - Cardiovascular
 cl2_car <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[2]]$Class2)
 
-atc_inter_drug_c2_car <- atc_inter_drug %>%
+drug_counts_car <- atc_inter_drug %>%
+  filter(Class2 %in% cl2_car) %>%
+  group_by(Class2, substance) %>%
+  summarise(N_sub = sum(N, na.rm = TRUE), .groups = "drop")
+
+class2_k_car <- drug_counts_car %>%
   group_by(Class2) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
-    by = "Class2"
+  summarise(N_class = sum(N_sub), .groups = "drop") %>%
+  mutate(
+    k = pmax(1L, c(9, 1, 7, 3, 6, 5, 5, NA, NA, NA))
+  )
+
+drug_with_rank_car <- drug_counts_car %>%
+  left_join(class2_k_car, by = "Class2") %>%
+  group_by(Class2) %>%
+  arrange(desc(N_sub), .by_group = TRUE) %>%
+  mutate(
+    rank   = row_number(),
+    is_top = rank <= k
   ) %>%
-  mutate(Percent = 100 * N / Total) %>%
-  filter(!is.na(Class2) & Class2 %in% cl2_car) %>%
-  arrange(desc(N))
+  ungroup()
 
-ggplot(atc_inter_drug_c2_car, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = "#9A9CC9") +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Cardiovascular System)",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top_df_car <- drug_with_rank_car %>%
+  filter(is_top) %>%
+  select(Class2, substance, N_sub)
 
+others_df_car <- drug_with_rank_car %>%
+  filter(!is_top) %>%
+  group_by(Class2) %>%
+  summarise(N_sub = sum(N_sub), .groups = "drop") %>%
+  mutate(substance = "Others") %>%
+  filter(N_sub > 0)
 
-# Antinfectives
+strata_df_car <- bind_rows(top_df_car, others_df_car) %>%
+  left_join(class2_k_car, by = "Class2") %>%
+  mutate(
+    Class2 = factor(Class2, levels = unique(Class2[order(-N_class)])),
+    substance = as.factor(substance)
+  ) %>%
+  select(-N_class, -k)
+
+car_levels <- strata_df_car %>%
+  group_by(substance) %>%
+  summarise(N_tot = sum(N_sub), .groups = "drop") %>%
+  arrange(-1*N_tot) %>%
+  pull(substance)
+car_levels <- c("Others", setdiff(car_levels, "Others"))
+
+strata_df_car <- strata_df_car %>%
+  mutate(substance = factor(substance, levels = car_levels))
+
+p2 <- ggplot(strata_df_car, aes(x = Class2, y = N_sub, fill = substance)) +
+  geom_col(color = "black", linewidth = 0.15) +
+  geom_text(
+    aes(label = substance),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    fontface = "bold",
+    color = "black") +
+  guides(fill = "none") +
+  labs(
+    title = "Interacting Drugs by ATC Class 2 (Cardiovascular System)",
+    x     = "ATC Class 2",
+    y     = "Count of Interacting Drugs") +
+  theme_void() +
+  theme(
+    axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
+    axis.title.x  = element_text(size = 10, face = "bold"),
+    axis.text   = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
+    plot.title  = element_text(size = 10, face = "bold")) +
+  scale_fill_manual(values = pastel_palette)
+
+# Class 2 - Antiinfectives
 cl2_ant <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[3]]$Class2)
 
-atc_inter_drug_c2_ant <- atc_inter_drug %>%
+drug_counts_ant <- atc_inter_drug %>%
+  filter(Class2 %in% cl2_ant) %>%
+  group_by(Class2, substance) %>%
+  summarise(N_sub = sum(N, na.rm = TRUE), .groups = "drop")
+
+class2_k_ant <- drug_counts_ant %>%
   group_by(Class2) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
-    by = "Class2"
+  summarise(N_class = sum(N_sub), .groups = "drop") %>%
+  mutate(
+    k = pmax(1L, c(12, 2, 3, 12, NA, NA, NA))
+  )
+
+drug_with_rank_ant <- drug_counts_ant %>%
+  left_join(class2_k_ant, by = "Class2") %>%
+  group_by(Class2) %>%
+  arrange(desc(N_sub), .by_group = TRUE) %>%
+  mutate(
+    rank   = row_number(),
+    is_top = rank <= k
   ) %>%
-  mutate(Percent = 100 * N / Total) %>%
-  filter(!is.na(Class2) & Class2 %in% cl2_ant) %>%
-  arrange(desc(N))
+  ungroup()
 
-ggplot(atc_inter_drug_c2_ant, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = "#CDBCA2") +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Antinfectives)",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top_df_ant <- drug_with_rank_ant %>%
+  filter(is_top) %>%
+  select(Class2, substance, N_sub)
 
-# Immunomodulating
+others_df_ant <- drug_with_rank_ant %>%
+  filter(!is_top) %>%
+  group_by(Class2) %>%
+  summarise(N_sub = sum(N_sub), .groups = "drop") %>%
+  mutate(substance = "Others") %>%
+  filter(N_sub > 0)
+
+strata_df_ant <- bind_rows(top_df_ant, others_df_ant) %>%
+  left_join(class2_k_ant, by = "Class2") %>%
+  mutate(
+    Class2 = factor(Class2, levels = unique(Class2[order(-N_class)])),
+    substance = as.factor(substance)
+  ) %>%
+  select(-N_class, -k)
+
+ant_levels <- strata_df_ant %>%
+  group_by(substance) %>%
+  summarise(N_tot = sum(N_sub), .groups = "drop") %>%
+  arrange(-1*N_tot) %>%
+  pull(substance)
+ant_levels <- c("Others", setdiff(ant_levels, "Others"))
+
+strata_df_ant <- strata_df_ant %>%
+  mutate(substance = factor(substance, levels = ant_levels))
+
+p3 <- ggplot(strata_df_ant, aes(x = Class2, y = N_sub, fill = substance)) +
+  geom_col(color = "black", linewidth = 0.15) +
+  geom_text(
+    aes(label = substance),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    fontface = "bold",
+    color = "black") +
+  guides(fill = "none") +
+  labs(
+    title = "Interacting Drugs by ATC Class 2 (Antiinfectives)",
+    x     = "ATC Class 2",
+    y     = "Count of Interacting Drugs") +
+  theme_void() +
+  theme(
+    axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
+    axis.title.x  = element_text(size = 10, face = "bold"),
+    axis.text   = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
+    plot.title  = element_text(size = 10, face = "bold")) +
+  scale_fill_manual(values = pastel_palette)
+
+# Class 2 - Immunomodulating
 cl2_imm <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[4]]$Class2)
 
-atc_inter_drug_c2_imm <- atc_inter_drug %>%
+drug_counts_imm <- atc_inter_drug %>%
+  filter(Class2 %in% cl2_imm) %>%
+  group_by(Class2, substance) %>%
+  summarise(N_sub = sum(N, na.rm = TRUE), .groups = "drop")
+
+class2_k_imm <- drug_counts_imm %>%
   group_by(Class2) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
-    by = "Class2"
-  ) %>%
-  mutate(Percent = 100 * N / Total) %>%
-  filter(!is.na(Class2) & Class2 %in% cl2_imm) %>%
-  arrange(desc(N))
+  summarise(N_class = sum(N_sub), .groups = "drop") %>%
+  mutate(
+    k = pmax(1L, c(11, 1, NA, 8))
+  )
 
-ggplot(atc_inter_drug_c2_imm, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = "#C1D848") +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Immunomodulating)",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Blood
-cl2_blo <- unique(ATC[ATC$Class1 %in% atc_inter_drug_c1$Class1[5]]$Class2)
-
-atc_inter_drug_c2_blo <- atc_inter_drug %>%
+drug_with_rank_imm <- drug_counts_imm %>%
+  left_join(class2_k_imm, by = "Class2") %>%
   group_by(Class2) %>%
-  summarise(N = sum(N, na.rm = TRUE)) %>%
-  left_join(
-    atc_total_drug %>% group_by(Class2) %>% summarise(Total = sum(N)),
-    by = "Class2"
+  arrange(desc(N_sub), .by_group = TRUE) %>%
+  mutate(
+    rank   = row_number(),
+    is_top = rank <= k
   ) %>%
-  mutate(Percent = 100 * N / Total) %>%
-  filter(!is.na(Class2) & Class2 %in% cl2_blo) %>%
-  arrange(desc(N))
+  ungroup()
 
-ggplot(atc_inter_drug_c2_blo, aes(x = reorder(Class2, -N), y = N)) +
-  geom_bar(stat = "identity", fill = "#B798A2") +
-  geom_text(aes(label = paste0(round(Percent, 1), "%")), vjust = -0.5, size = 3) +
-  labs(title = "Count of Interacting Drugs by ATC Class 2 (Blood system)",
-       x = "ATC Class",
-       y = "Count of Interacting Drugs") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+top_df_imm <- drug_with_rank_imm %>%
+  filter(is_top) %>%
+  select(Class2, substance, N_sub)
 
+others_df_imm <- drug_with_rank_imm %>%
+  filter(!is_top) %>%
+  group_by(Class2) %>%
+  summarise(N_sub = sum(N_sub), .groups = "drop") %>%
+  mutate(substance = "Others") %>%
+  filter(N_sub > 0)
 
+strata_df_imm <- bind_rows(top_df_imm, others_df_imm) %>%
+  left_join(class2_k_imm, by = "Class2") %>%
+  mutate(
+    Class2 = factor(Class2, levels = unique(Class2[order(-N_class)])),
+    substance = as.factor(substance)
+  ) %>%
+  select(-N_class, -k)
 
+imm_levels <- strata_df_imm %>%
+  group_by(substance) %>%
+  summarise(N_tot = sum(N_sub), .groups = "drop") %>%
+  arrange(-1*N_tot) %>%
+  pull(substance)
+imm_levels <- c("Others", setdiff(imm_levels, "Others"))
 
+strata_df_imm <- strata_df_imm %>%
+  mutate(substance = factor(substance, levels = imm_levels))
+
+p4 <- ggplot(strata_df_imm, aes(x = Class2, y = N_sub, fill = substance)) +
+  geom_col(color = "black", linewidth = 0.15) +
+  geom_text(
+    aes(label = substance),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    fontface = "bold",
+    color = "black") +
+  guides(fill = "none") +
+  labs(
+    title = "Interacting Drugs by ATC Class 2 (Immunomodulating)",
+    x     = "ATC Class 2",
+    y     = "Count of Interacting Drugs") +
+  theme_void() +
+  theme(
+    axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
+    axis.title.x  = element_text(size = 10, face = "bold"),
+    axis.text   = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
+    axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
+    plot.title  = element_text(size = 10, face = "bold")) +
+  scale_fill_manual(values = pastel_palette)
+
+ggsave("results/plots/plot5.tiff", plot = (p1 | p2) / (p3 | p4), width = 22, height = 18, units = "in", dpi = 1000, compression = "lzw")
 
 # Plot trend for most reported interacting drugs -----
 int_data <- read_excel("results/Most_reported_interacting_drugs.xlsx")
