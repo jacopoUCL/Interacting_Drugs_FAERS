@@ -50,6 +50,7 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
 pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
 subs_inter <- unique(Drug[role_cod != "I"]$substance) # 6317
+
 # Unique combinations by primaryid and role_cod for all data
 write.xlsx(
   Drug[, .SD[!duplicated(Drug, by = c("primaryid", "role_cod"))]]
@@ -71,7 +72,7 @@ write.xlsx(
   file = "results/roles_count2.xlsx"
 )
 
-## Count number of drugs per report within SS or I, with at least one I -----
+# Count number of drugs per report within SS or I, with at least one I -----
 drug_counts_all <- Drug[primaryid %in% pids_inter & role_cod %in% c("SS", "I"), .N, by = primaryid]
 setnames(drug_counts_all, "N", "total_drugs")
 
@@ -147,7 +148,7 @@ p1 <- ggplot(bars, aes(x = total_drugs, y = count, fill = role_cod)) +
                           formatC(sum(bars$count[bars$role_cod == "I"]), format = "d", big.mark = ",")),
            hjust = 0, size = 3.5, color = "black")
            
-## Count number of drugs per report within PS, SS, C or I, with at least one I -----
+# Count number of drugs per report within PS, SS, C or I, with at least one I -----
 Drug_susp <- copy(Drug)
 Drug_susp[role_cod %in% c("PS", "SS"), role_cod := "S"]
 Drug_susp[, role_cod := factor(role_cod, levels = c(C = "C", I = "I", S = "S"))]
@@ -480,7 +481,7 @@ descriptive(pids_cases = pids_10_inter, drug = "furosemide", file_name = "result
             vars = c("sex", "Reporter", "age_range", "Outcome", "continent", "age_in_years", "Reactions", 
                      "Indications", "Substances", "role_cod", "time_to_onset", "year"))
 
-# Chuisq. test ----------------------
+# Chisq. test ----------------------
 clean_desc <- function(path){
   read_excel(path) %>%
     select(`**Characteristic**`, N_cases) %>%
@@ -681,11 +682,10 @@ add_chi_sheet(wb, "Outcome", test_out, t(tab_out))
 add_chi_sheet(wb, "Continent", test_con, t(tab_con))
 saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
 
-## ADR -----
 # Count ADR repetitions for interacting drugs ---------------------
 Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
 Reac_inter_count <- Reac_inter_count[1:10,]
-
+write.xlsx(Reac_inter_count, file = "results/Most_reported_ADR_for_inter_drugs.xlsx")
 
 # Most reported ADRs for most reported interacting drugs --------------------------
 react_count_1 <- as.data.frame(Reac[primaryid %in% pids_1_inter & !is.na(pt), .N, by = .(pt)][order(-N)][1:10,])
@@ -1376,7 +1376,7 @@ ggsave("results/plots/plot_years.tiff", plot = py, width = 12, height = 8, units
 
 # Omega -----
 # Most reported couples of drugs -----
-## for the most reported interacting drugs -----
+# For the most reported interacting drugs -----
 pids_most_int <- list(pids_1_inter, pids_2_inter, pids_3_inter, pids_4_inter, pids_5_inter, 
                       pids_6_inter, pids_7_inter, pids_8_inter, pids_9_inter, pids_10_inter)
 ggsave("results/plots/plot0.tiff", plot = last_plot(), width = 12, height = 8, units = "in", dpi = 1000, compression = "lzw")roles <- c("PS", "SS", "C")
