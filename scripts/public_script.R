@@ -66,6 +66,10 @@ ratios_summary <- data.frame(
 )
 most_reported <- merge(Drug_inter_count, ratios_summary, by = "substance")
 write.xlsx(most_reported, file = "results/Most_reported_interacting_drugs.xlsx")
+# Count ADR repetitions for interacting drugs ---------------------
+Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
+Reac_inter_count <- Reac_inter_count[1:10,]
+write.xlsx(Reac_inter_count, file = "results/Most_reported_ADR_for_inter_drugs.xlsx")
 # Most reported ADRs for most reported interacting drugs --------------------------
 pids_list <- lapply(subs, function(s) {
   unique(Drug[role_cod == "I" & substance == s]$primaryid)
@@ -577,5 +581,207 @@ ggsave("results/plots/plot_years.tiff", plot = py, width = 12, height = 8, units
 #####
 
 # Statistical analyses -----
+# Chisq. test ----------------------
+descriptive(pids_non_inter, file_name = "results/Descriptive_all_data_non_inter.xlsx")
+
+clean_desc <- function(path){
+  read_excel(path) %>%
+    select(`**Characteristic**`, N_cases) %>%
+    mutate(N_cases = as.numeric(gsub(",", "", N_cases))) %>%
+    pivot_wider(
+      names_from = `**Characteristic**`,
+      values_from = N_cases
+    ) %>%
+    select(-c(Unknown, N))
+}
+
+files <- c(
+  int = "results/tables/univariate/Descriptive_all_data_inter.xlsx",
+  non_int = "results/tables/univariate/Descriptive_all_data_non_inter.xlsx"
+)
+
+dfs <- lapply(files, clean_desc)
+dfs$int <- dfs$int[,c(1:35, 167:173)]
+dfs$non_int <- dfs$non_int[,c(1:35, 283:289)]
+
+# sex 
+tab_sex <- rbind(Int   = c(Male = as.numeric(dfs$int$Male[1]),   Female = as.numeric(dfs$int$Female[1])),
+                 Non_int = c(Male = as.numeric(dfs$non_int$Male[1]), Female = as.numeric(dfs$non_int$Female[1])))
+tab_sex <- as.data.frame.matrix(t)
+test_sex <- chisq.test(tab_sex)
+test_sex$residuals
+test_sex$p.value
+
+# age range
+tab_age <- rbind(Int = c(`Neonate (<28d)` = as.numeric(dfs$int$`Neonate (<28d)`[1]),
+                         `Infant (28d-1y)` = as.numeric(dfs$int$`Infant (28d-1y)`[1]),
+                         `Child (2y-11y)` = as.numeric(dfs$int$`Child (2y-11y)`[1]),
+                         `Teenager (12y-17y)` = as.numeric(dfs$int$`Teenager (12y-17y)`[1]),
+                         `Adult (18y-29y)` = as.numeric(dfs$int$`Adult (18y-29y)`[1]),
+                         `Adult (30y-49y)` = as.numeric(dfs$int$`Adult (30y-49y)`[1]),
+                         `Adult (50y-64y)` = as.numeric(dfs$int$`Adult (50y-64y)`[1]),
+                         `Elderly (65y-74y)` = as.numeric(dfs$int$`Elderly (65y-74y)`[1]),
+                         `Elderly (75y-84y)` = as.numeric(dfs$int$`Elderly (75y-84y)`[1]),
+                         `Elderly (85y-99y)` = as.numeric(dfs$int$`Elderly (85y-99y)`[1]),
+                         `Elderly (>99y)` = as.numeric(dfs$int$`Elderly (>99y)`[1])),
+                 Non_int = c(`Neonate (<28d)` = as.numeric(dfs$non_int$`Neonate (<28d)`[1]),
+                             `Infant (28d-1y)` = as.numeric(dfs$non_int$`Infant (28d-1y)`[1]),
+                             `Child (2y-11y)` = as.numeric(dfs$non_int$`Child (2y-11y)`[1]),
+                             `Teenager (12y-17y)` = as.numeric(dfs$non_int$`Teenager (12y-17y)`[1]),
+                             `Adult (18y-29y)` = as.numeric(dfs$non_int$`Adult (18y-29y)`[1]),
+                             `Adult (30y-49y)` = as.numeric(dfs$non_int$`Adult (30y-49y)`[1]),
+                             `Adult (50y-64y)` = as.numeric(dfs$non_int$`Adult (50y-64y)`[1]),
+                             `Elderly (65y-74y)` = as.numeric(dfs$non_int$`Elderly (65y-74y)`[1]),
+                             `Elderly (75y-84y)` = as.numeric(dfs$non_int$`Elderly (75y-84y)`[1]),
+                             `Elderly (85y-99y)` = as.numeric(dfs$non_int$`Elderly (85y-99y)`[1]),
+                             `Elderly (>99y)` = as.numeric(dfs$non_int$`Elderly (>99y)`[1])))
+
+tab_age <- as.data.frame.matrix(tab_age)
+
+test_age <- chisq.test(tab_age)
+test_age$residuals
+test_age$p.value
+
+# Outcome
+tab_out <- rbind(Int = c(Death = as.numeric(dfs$int$Death[1]),
+                         `Life threatening` = as.numeric(dfs$int$`Life threatening`[1]),
+                         Disability = as.numeric(dfs$int$Disability[1]),
+                         `Required intervention` = as.numeric(dfs$int$`Required intervention`[1]),
+                         Hospitalization = as.numeric(dfs$int$Hospitalization[1]),
+                         `Congenital anomaly` = as.numeric(dfs$int$`Congenital anomaly`[1]),
+                         `Other serious` = as.numeric(dfs$int$`Other serious`[1]),
+                         `Non Serious` = as.numeric(dfs$int$`Non Serious`[1])),
+                 
+                 Non_int = c(Death = as.numeric(dfs$non_int$Death[1]),
+                             `Life threatening` = as.numeric(dfs$non_int$`Life threatening`[1]),
+                             Disability = as.numeric(dfs$non_int$Disability[1]),
+                             `Required intervention` = as.numeric(dfs$non_int$`Required intervention`[1]),
+                             Hospitalization = as.numeric(dfs$non_int$Hospitalization[1]),
+                             `Congenital anomaly` = as.numeric(dfs$non_int$`Congenital anomaly`[1]),
+                             `Other serious` = as.numeric(dfs$non_int$`Other serious`[1]),
+                             `Non Serious` = as.numeric(dfs$non_int$`Non Serious`[1])))
+
+tab_out <- as.data.frame.matrix(tab_out)
+
+test_out <- chisq.test(tab_out)
+test_out$residuals
+test_out$p.value
+
+# Continent
+tab_con <- rbind(Int = c(`North America` = as.numeric(dfs$int$`North America`[1]),
+                         Europe = as.numeric(dfs$int$Europe[1]),
+                         Asia = as.numeric(dfs$int$Asia[1]),
+                         `South America` = as.numeric(dfs$int$`South America`[1]),
+                         Oceania = as.numeric(dfs$int$Oceania[1]),
+                         Africa = as.numeric(dfs$int$Africa[1])),
+                 
+                 Non_int = c(`North America` = as.numeric(dfs$non_int$`North America`[1]),
+                             Europe = as.numeric(dfs$non_int$Europe[1]),
+                             Asia = as.numeric(dfs$non_int$Asia[1]),
+                             `South America` = as.numeric(dfs$non_int$`South America`[1]),
+                             Oceania = as.numeric(dfs$non_int$Oceania[1]),
+                             Africa = as.numeric(dfs$non_int$Africa[1])))
+
+tab_con <- as.data.frame.matrix(tab_con)
+
+test_con <- chisq.test(tab_con)
+test_con$residuals
+test_con$p.value
+
+# summary
+tab_pvals <- data.frame(Variable = c("Sex", "Age", "Outcome", "Continent", ),
+                        p_value  = c(test_sex$p.value, test_age$p.value,
+                                     test_out$p.value, test_con$p.value))
+tab_pvals$signif <- cut(tab_pvals$p_value,
+                        breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
+                        labels = c("***", "**", "*", "ns"))
+# Plots
+plot_residuals <- function(resid_mat, title) {
+  df_resid <- as.data.frame(resid_mat)
+  df_resid$Group <- rownames(df_resid)
+  
+  df_long <- df_resid |>
+    pivot_longer(
+      cols      = -Group,
+      names_to  = "Category",
+      values_to = "Residual"
+    )
+  
+  ggplot(df_long, aes(x = Category, y = Group, fill = Residual)) +
+    geom_tile(, colour = "black") +
+    geom_text(aes(label = round(Residual, 1))) +
+    scale_fill_gradient2(
+      midpoint = 0,
+      low = "#BBDAF8",
+      mid = "#FFFFFF",
+      high = "#F4BED4",
+      limits = c(min(df_long$Residual), max(df_long$Residual))) +
+    labs(
+      title = title,
+      x = NULL,
+      y = NULL,
+      fill = "Std. residual") +
+    theme_void() +
+    theme(
+      axis.title.y  = element_text(size = 13, face = "bold", angle = 90),
+      axis.title.x  = element_text(size = 13, face = "bold"),
+      axis.text   = element_text(size = 13, face = "bold"),
+      axis.text.x = element_text(size = 13, face = "bold", angle = 45, hjust = 1, vjust = 1),
+      axis.text.y = element_text(size = 13, face = "bold", angle = 45, hjust = 1),
+      plot.title  = element_text(size = 13, face = "bold"))
+  
+}
+p_chisq <- plot_residuals(test_sex$residuals, "Sex") + 
+  plot_residuals(test_age$residuals, "Age") +
+  plot_residuals(test_out$residuals, "Outcome") +
+  plot_residuals(test_con$residuals, "Continent") +
+  plot_layout(ncol = 2)
+
+ggsave("results/plots/plot_chisq.tiff", plot = p_chisq, width = 17, height = 13, units = "in", dpi = 1000, compression = "lzw")
+
+
+# Cramer's V of imbalance
+cramers_v <- function(tab) {
+  chi       <- suppressWarnings(chisq.test(tab, correct = FALSE))
+  N         <- sum(tab)
+  k         <- min(nrow(tab), ncol(tab))
+  V         <- sqrt(chi$statistic / (N * (k - 1)))
+  as.numeric(V)
+}
+cramers_v_sex      <- cramers_v(tab_sex)
+cramers_v_age      <- cramers_v(tab_age)
+cramers_v_outcome  <- cramers_v(tab_out)
+cramers_v_continent<- cramers_v(tab_con)
+
+tab_effect <- data.frame(Variable  = c("Sex", "Age", "Outcome", "Continent"),
+                         Cramers_V = c(cramers_v_sex, cramers_v_age, 
+                                       cramers_v_outcome, cramers_v_continent))
+
+final_tab <- cbind(tab_pvals[,-3], CramerV = tab_effect$Cramers_V)
+write.xlsx(final_tab, file = "results/chisq_test.xlsx")
+
+# save tables
+wb <- createWorkbook()
+add_chi_sheet <- function(wb, sheet_name, test_object, table_object) {
+  addWorksheet(wb, sheet_name)
+  writeData(wb, sheet_name, "Observed counts:", startRow = 1, startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(table_object), startRow = 2, startCol = 1)
+  
+  writeData(wb, sheet_name, "Expected counts:", startRow = 5 + nrow(table_object), startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$expected, 2)), 
+            startRow = 6 + nrow(table_object), startCol = 1)
+  
+  writeData(wb, sheet_name, "Standardized residuals:", startRow = 9 + 2*nrow(table_object), startCol = 1)
+  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$residuals, 2)), 
+            startRow = 10 + 2*nrow(table_object), startCol = 1)
+  
+  writeData(wb, sheet_name, paste("p-value:", test_object$p.value), 
+            startRow = 12 + 3*nrow(table_object), startCol = 1)
+}
+add_chi_sheet(wb, "Sex", test_sex, t(tab_sex))
+add_chi_sheet(wb, "Age", test_age, t(tab_age))
+add_chi_sheet(wb, "Outcome", test_out, t(tab_out))
+add_chi_sheet(wb, "Continent", test_con, t(tab_con))
+saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
 
 
