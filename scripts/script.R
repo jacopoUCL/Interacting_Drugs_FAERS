@@ -50,6 +50,7 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
 pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
 subs_inter <- unique(Drug[role_cod != "I"]$substance) # 6317
+
 # Unique combinations by primaryid and role_cod for all data
 write.xlsx(
   Drug[, .SD[!duplicated(Drug, by = c("primaryid", "role_cod"))]]
