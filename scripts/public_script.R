@@ -47,6 +47,253 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 # Descriptive analyses -----
 # Selection of reports with at least one interacting drug ----------------------
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
+pids_susp <- unique(Drug[role_cod %in% c("SS", "PS")]$primaryid) # 14.738.725
+pids_conc <- unique(Drug[role_cod == "C"]$primaryid) # 5.122.564
+pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
+subs_inter <- unique(Drug[role_cod != "I"]$substance) # 6317
+# NAs analysis ------
+# int
+Demo_int <- copy(Demo)[primaryid %in% pids_inter]
+Drug_int <- copy(Drug)[primaryid %in% pids_inter]
+Reac_int <- copy(Reac)[primaryid %in% pids_inter]
+Indi_int <- copy(Indi)[primaryid %in% pids_inter]
+Outc_int <- copy(Outc)[primaryid %in% pids_inter]
+Ther_int <- copy(Ther)[primaryid %in% pids_inter]
+datasets_int <- list(Demo_int, Drug_int, Indi_int, Reac_int, Outc_int, Ther_int)
+nas_counts_list_int <- data.frame("variable" = character(), "NAs_int" = integer())
+for (i in seq_along(datasets_int)) {
+  dataset <- datasets_int[[i]]
+  for (j in 1:ncol(dataset)) {
+    na_count <- sum(is.na(dataset[[j]]))
+    nas_counts_list_int <- rbind(nas_counts_list_int, 
+                                 data.frame("variable" = colnames(dataset)[j], 
+                                            "NAs_int" = na_count))
+  }
+}
+
+# conc
+Demo_conc <- copy(Demo)[primaryid %in% pids_conc]
+Drug_conc <- copy(Drug)[primaryid %in% pids_conc]
+Reac_conc <- copy(Reac)[primaryid %in% pids_conc]
+Indi_conc <- copy(Indi)[primaryid %in% pids_conc]
+Outc_conc <- copy(Outc)[primaryid %in% pids_conc]
+Ther_conc <- copy(Ther)[primaryid %in% pids_conc]
+datasets_conc <- list(Demo_conc, Drug_conc, Indi_conc, Reac_conc, Outc_conc, Ther_conc)
+nas_counts_list_conc <- data.frame("variable" = character(), "NAs_conc" = integer())
+for (i in seq_along(datasets_conc)) {
+  dataset <- datasets_conc[[i]]
+  for (j in 1:ncol(dataset)) {
+    na_count <- sum(is.na(dataset[[j]]))
+    nas_counts_list_conc <- rbind(nas_counts_list_conc, 
+                                  data.frame("variable" = colnames(dataset)[j], 
+                                             "NAs_conc" = na_count))
+  }
+}
+
+# susp
+Demo_susp <- copy(Demo)[primaryid %in% pids_susp]
+Drug_susp <- copy(Drug)[primaryid %in% pids_susp]
+Reac_susp <- copy(Reac)[primaryid %in% pids_susp]
+Indi_susp <- copy(Indi)[primaryid %in% pids_susp]
+Outc_susp <- copy(Outc)[primaryid %in% pids_susp]
+Ther_susp <- copy(Ther)[primaryid %in% pids_susp]
+datasets_susp <- list(Demo_susp, Drug_susp, Indi_susp, Reac_susp, Outc_susp, Ther_susp)
+nas_counts_list_susp <- data.frame("variable" = character(), "NAs_susp" = integer())
+for (i in seq_along(datasets_susp)) {
+  dataset <- datasets_susp[[i]]
+  for (j in 1:ncol(dataset)) {
+    na_count <- sum(is.na(dataset[[j]]))
+    nas_counts_list_susp <- rbind(nas_counts_list_susp, 
+                                  data.frame("variable" = colnames(dataset)[j], 
+                                             "NAs_susp" = na_count))
+  }
+}
+
+setDT(nas_counts_list_int)
+setDT(nas_counts_list_conc)
+setDT(nas_counts_list_susp)
+
+# remove specific elements
+nas_counts_list_int <- nas_counts_list_int[!variable %in% c("primaryid", "wt_in_kgs", "reporter_country", "init_fda_dt", 
+                                                            "event_dt", "premarketing", "literature", "RB_duplicates", 
+                                                            "RB_duplicates_only_susp", "drug_seq", "drug_rec_act", 
+                                                            "start_dt", "dur_in_days","end_dt", "rept_cod", "indi_pt", 
+                                                            "role_cod", "pt", "outc_cod", "fda_dt")]
+nas_counts_list_conc <- nas_counts_list_conc[!variable %in% c("primaryid", "wt_in_kgs", "reporter_country", "init_fda_dt", 
+                                                              "event_dt", "premarketing", "literature", "RB_duplicates", 
+                                                              "RB_duplicates_only_susp", "drug_seq", "drug_rec_act", 
+                                                              "start_dt", "dur_in_days","end_dt", "rept_cod", "indi_pt", 
+                                                              "role_cod", "pt", "outc_cod", "fda_dt")]
+nas_counts_list_susp <- nas_counts_list_susp[!variable %in% c("primaryid", "wt_in_kgs", "reporter_country", "init_fda_dt", 
+                                                              "event_dt", "premarketing", "literature", "RB_duplicates", 
+                                                              "RB_duplicates_only_susp", "drug_seq", "drug_rec_act", 
+                                                              "start_dt", "dur_in_days","end_dt", "rept_cod", "indi_pt", 
+                                                              "role_cod", "pt", "outc_cod", "fda_dt")]
+
+tot_obs <- data.frame("variable" = nas_counts_list_int$variable, 
+                      "N_var" = c(rep(nrow(Demo), 4), nrow(Drug), nrow(Ther)))
+
+df_nas <- merge(
+  nas_counts_list_int,
+  merge(nas_counts_list_conc,
+        merge(nas_counts_list_susp, tot_obs, by = "variable"),
+        by = "variable"),
+  by = "variable"
+)
+
+df_nas$variable <- c("Age", "Reporter", "Country", "Sex", "Substance", "TTO")
+
+pids_I <- unique(Drug[role_cod == "I"]$primaryid)
+pids_C <- unique(Drug[role_cod == "C"]$primaryid)
+pids_S <- unique(Drug[role_cod %in% c("SS","PS")]$primaryid)
+
+N_role_I <- length(pids_I)
+N_role_C <- length(pids_C)
+N_role_S <- length(pids_S)
+
+N_role_var_I_demo <- nrow(Demo[primaryid %in% pids_I])
+N_role_var_C_demo <- nrow(Demo[primaryid %in% pids_C])
+N_role_var_S_demo <- nrow(Demo[primaryid %in% pids_S])
+
+N_role_var_I_drug <- nrow(Drug[role_cod == "I"])
+N_role_var_C_drug <- nrow(Drug[role_cod == "C"])
+N_role_var_S_drug <- nrow(Drug[role_cod %in% c("SS","PS")])
+
+N_role_var_I_ther <- nrow(Ther[primaryid %in% pids_I])
+N_role_var_C_ther <- nrow(Ther[primaryid %in% pids_C])
+N_role_var_S_ther <- nrow(Ther[primaryid %in% pids_S])
+
+N_variable_vec <- c(rep(nrow(Demo), 4), nrow(Drug), nrow(Ther))
+names(N_variable_vec) <- c("Age","Reporter","Country","Sex","Substance","TTO")
+
+df_plot <- df_nas %>%
+  mutate(
+    N_variable = N_variable_vec[variable],
+    NAs_variable = NAs_int + NAs_conc + NAs_susp
+  ) %>%
+  tidyr::pivot_longer(
+    cols = c(NAs_int, NAs_conc, NAs_susp),
+    names_to = "role",
+    values_to = "NAs_role_variable"
+  ) %>%
+  mutate(
+    role = dplyr::recode(role,
+                         NAs_int = "I",
+                         NAs_conc = "C",
+                         NAs_susp = "S"),
+    N_role = dplyr::case_when(
+      role == "I" ~ N_role_I,
+      role == "C" ~ N_role_C,
+      role == "S" ~ N_role_S,
+      TRUE ~ NA_real_
+    ),
+    N_role_variable = dplyr::case_when(
+      variable %in% c("Age","Reporter","Country","Sex") & role == "I" ~ N_role_var_I_demo,
+      variable %in% c("Age","Reporter","Country","Sex") & role == "C" ~ N_role_var_C_demo,
+      variable %in% c("Age","Reporter","Country","Sex") & role == "S" ~ N_role_var_S_demo,
+      
+      variable %in% c("Substance") & role == "I" ~ N_role_var_I_drug,
+      variable %in% c("Substance") & role == "C" ~ N_role_var_C_drug,
+      variable %in% c("Substance") & role == "S" ~ N_role_var_S_drug,
+      
+      variable %in% c("TTO") & role == "I" ~ N_role_var_I_ther,
+      variable %in% c("TTO") & role == "C" ~ N_role_var_C_ther,
+      variable %in% c("TTO") & role == "S" ~ N_role_var_S_ther,
+      
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  dplyr::group_by(role) %>%
+  dplyr::ungroup() %>%
+  mutate(
+    NAs_relative_variable = NAs_variable / N_variable,
+    NAs_relative_role_variable = NAs_role_variable / N_role_variable
+  ) %>%
+  dplyr::select(
+    variable,
+    role,
+    N_variable,
+    N_role_variable,
+    NAs_variable,
+    NAs_role_variable,
+    NAs_relative_variable,
+    NAs_relative_role_variable
+  )
+
+pd <- position_dodge(width = 0.75)
+
+df_mark <- df_plot %>%
+  filter(role == last(levels(factor(role))) & NAs_variable > 0) %>%
+  distinct(variable, NAs_variable, NAs_relative_variable)
+
+df_legend <- tibble::tibble(
+  variable = df_plot$variable[1],
+  NAs_variable = df_plot$NAs_variable[1],
+  NAs_relative_role_variable = 0,
+  role = df_plot$role[1],
+  leg_line = "NAs per variable / N variable",
+  leg_square = "NAs per variable|role / N per variable|role"
+)
+
+plot_nas <- ggplot(df_plot, aes(x = reorder(variable, NAs_variable), y = NAs_relative_role_variable, fill = role)) +
+  geom_col(width = 0.75, position = pd, colour = "black") +
+  geom_segment(data = df_mark, inherit.aes = FALSE, 
+               aes(x = reorder(variable, NAs_variable), xend = reorder(variable, NAs_variable), 
+                   y = 0, yend = NAs_relative_variable), linewidth = 0.6, color = "black") +
+  geom_errorbar(data = df_mark, inherit.aes = FALSE, 
+                aes(x = reorder(variable, NAs_variable), ymin = NAs_relative_variable, 
+                    ymax = NAs_relative_variable), width = 0.1, linewidth = 0.9, color = "black") +
+  geom_segment(
+    data = df_legend,
+    inherit.aes = FALSE,
+    aes(x = 1, xend = 1.6, y = 0, yend = 0, linetype = leg_line),
+    color = "black",
+    linewidth = 0.8) +
+  geom_point(
+    data = df_legend,
+    inherit.aes = FALSE,
+    aes(x = 1, y = 0, shape = leg_square),
+    size = 4,
+    stroke = 1,
+    color = "black",
+    fill = "white") +
+  scale_fill_manual(values = c("I" = "#BBDAF8", "S" = "#90C893", "C" = "#FFC899")) +
+  scale_linetype_manual(
+    name = NULL,
+    values = c("NAs per variable / N variable" = "solid")) +
+  scale_shape_manual(
+    name = NULL,
+    values = c("NAs per variable|role / N per variable|role" = 22)) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    breaks = seq(0, 1, by = 0.1),
+    expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Variables", y = "Relative NAs", fill = "Role") +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top",
+    panel.grid.major.y = element_blank(),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(face = "bold"),
+    axis.text.y = element_text(
+      angle = 45, hjust = 1, vjust = -0.5,
+      size = 12, face = "bold"),
+    axis.text.x = element_text(
+      angle = 45, hjust = 1, vjust = 1,
+      size = 12, face = "bold")) +
+  guides(
+    fill = guide_legend(order = 1),
+    linetype = guide_legend(order = 2, override.aes = list(color = "black", linewidth = 0.8)),
+    shape = guide_legend(order = 3, override.aes = list(fill = "white", color = "black", size = 4)))
+
+
+write.xlsx(df_plot, file = "results/tables/nas_by_role.xlsx")
+ggsave("results/plots/nas_plot.tiff", plot = plot_nas, width = 14, 
+       height = 10, units = "in", dpi = 1000, compression = "lzw")
+
+
 # Descriptive, full dataset -----
 descriptive(pids_inter, file_name = "results/Descriptive_all_data_inter.xlsx")
 # Most reported interacting drugs -----
