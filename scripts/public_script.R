@@ -1,5 +1,6 @@
 # Authors: Jacopo Palombarini, Angela Boccia
-# Last update: 5/12/2025
+# Last update: 21/1/2025
+# RUN THE "helpers.R" SCRPT FIRST
 
 # Setup -----
 # Packages  -----
@@ -45,13 +46,13 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 #####
 
 # Descriptive analyses -----
-# Selection of reports with at least one interacting drug ----------------------
+## Selection of reports with at least one interacting drug ----------------------
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
 pids_susp <- unique(Drug[role_cod %in% c("SS", "PS")]$primaryid) # 14.738.725
 pids_conc <- unique(Drug[role_cod == "C"]$primaryid) # 5.122.564
 pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
 subs_inter <- unique(Drug[role_cod != "I"]$substance) # 6317
-# NAs analysis ------
+## NAs analysis ------
 # int
 Demo_int <- copy(Demo)[primaryid %in% pids_inter]
 Drug_int <- copy(Drug)[primaryid %in% pids_inter]
@@ -220,6 +221,48 @@ df_plot <- df_nas %>%
     NAs_relative_role_variable
   )
 
+write.xlsx(df_plot, file = "results/tables/nas_by_role.xlsx")
+
+## Descriptive, full dataset -----
+descriptive(pids_inter, file_name = "results/tables/Descriptive_all_data_inter.xlsx")
+## Most reported interacting drugs -----
+Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
+Drug_inter_count$perc <- round(Drug_inter_count$N / sum(Drug_inter_count$N), 3) * 100
+## Ratio for most reported interacting drugs over non interacting reports --------------------------
+subs <- as.character(Drug_inter_count$substance[1:10])
+ratios <- sapply(subs, get_ratio)
+ratios_summary <- data.frame(
+  substance = subs,
+  ratio_int_vs_nonint = round(ratios * 100, 3)
+)
+most_reported <- merge(Drug_inter_count, ratios_summary, by = "substance")
+write.xlsx(most_reported, file = "results/tables/Most_reported_interacting_drugs.xlsx")
+## Count ADR repetitions for interacting drugs ---------------------
+Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
+Reac_inter_count <- Reac_inter_count[1:10,]
+write.xlsx(Reac_inter_count, file = "results/tables/Most_reported_ADR_for_inter_drugs.xlsx")
+## Most reported ADRs for most reported interacting drugs --------------------------
+pids_list <- lapply(subs, function(s) {
+  unique(Drug[role_cod == "I" & substance == s]$primaryid)
+})
+names(pids_list) <- subs
+react_count <- lapply(pids_list, get_react_count)
+react_count <- lapply(react_count, function(x) {
+  colnames(x) <- c("substance", "N")
+  x
+})
+react_count_unique <- dplyr::bind_rows(react_count)
+reacs <- vector()
+for (i in 1:length(names(pids_list))) {
+  reacs <- c(reacs, rep(names(pids_list)[i], 10))
+}
+react_count_unique$mrid <- reacs
+write.xlsx(react_count_unique, file = "results/tables/Most_reported_ADR_for_most_reported_inter_drugs.xlsx")
+
+#####
+
+# Plots -----
+## NAs -----
 pd <- position_dodge(width = 0.75)
 
 df_mark <- df_plot %>%
@@ -288,62 +331,10 @@ plot_nas <- ggplot(df_plot, aes(x = reorder(variable, NAs_variable), y = NAs_rel
     linetype = guide_legend(order = 2, override.aes = list(color = "black", linewidth = 0.8)),
     shape = guide_legend(order = 3, override.aes = list(fill = "white", color = "black", size = 4)))
 
-
-write.xlsx(df_plot, file = "results/tables/nas_by_role.xlsx")
 ggsave("results/plots/nas_plot.tiff", plot = plot_nas, width = 14, 
        height = 10, units = "in", dpi = 1000, compression = "lzw")
 
-
-# Descriptive, full dataset -----
-descriptive(pids_inter, file_name = "results/Descriptive_all_data_inter.xlsx")
-# Most reported interacting drugs -----
-Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
-Drug_inter_count$perc <- round(Drug_inter_count$N / sum(Drug_inter_count$N), 3) * 100
-# Ratio for most reported interacting drugs over non interacting reports --------------------------
-subs <- as.character(Drug_inter_count$substance[1:10])
-get_ratio <- function(s) {
-  pids_inter     <- unique(Drug[role_cod == "I"  & substance == s]$primaryid)
-  pids_non_inter <- unique(Drug[role_cod != "I" & substance == s]$primaryid)
-  length(pids_inter) / length(pids_non_inter)
-}
-ratios <- sapply(subs, get_ratio)
-ratios_summary <- data.frame(
-  substance = subs,
-  ratio_int_vs_nonint = round(ratios * 100, 3)
-)
-most_reported <- merge(Drug_inter_count, ratios_summary, by = "substance")
-write.xlsx(most_reported, file = "results/Most_reported_interacting_drugs.xlsx")
-# Count ADR repetitions for interacting drugs ---------------------
-Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
-Reac_inter_count <- Reac_inter_count[1:10,]
-write.xlsx(Reac_inter_count, file = "results/Most_reported_ADR_for_inter_drugs.xlsx")
-# Most reported ADRs for most reported interacting drugs --------------------------
-pids_list <- lapply(subs, function(s) {
-  unique(Drug[role_cod == "I" & substance == s]$primaryid)
-})
-names(pids_list) <- subs
-get_react_count <- function(pids) {
-  as.data.frame(
-    Reac[primaryid %in% pids & !is.na(pt), .N, by = pt][order(-N)][1:10]
-  )
-}
-react_count <- lapply(pids_list, get_react_count)
-react_count <- lapply(react_count, function(x) {
-  colnames(x) <- c("substance", "N")
-  x
-})
-react_count_unique <- dplyr::bind_rows(react_count)
-write.xlsx(react_count_unique, file = "results/Most_reported_ADR_for_most_reported_inter_drugs.xlsx")
-
-
-
-
-
-
-#####
-
-# Plots -----
-# Count number of drugs per report within PS, SS, C or I, with at least one I -----
+## Count number of drugs per report within PS, SS, C or I, with at least one I -----
 Drug_susp <- copy(Drug)
 Drug_susp[role_cod %in% c("PS", "SS"), role_cod := "S"]
 Drug_susp[, role_cod := factor(role_cod, levels = c(C = "C", I = "I", S = "S"))]
@@ -387,10 +378,6 @@ freq_roles <- Drug_susp[primaryid %in% pids_inter][
     , .N, by = role_cod][
       , perc := round(N / sum(N) * 100, 2)][
         order(-N)]
-
-# Convenience: pull N and perc into a named list/vector
-getN   <- function(role) freq_roles[role_cod == role, N]
-getPct <- function(role) freq_roles[role_cod == role, perc]
 
 p1 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
   geom_col(position = "stack") +
@@ -453,7 +440,7 @@ p1 / p2 + plot_layout(heights = c(1, 1.2)) +
 
 ggsave("results/plots/plot_count.tiff", plot = p2 / p3, width = 14, height = 10, units = "in", dpi = 1000, compression = "lzw")
 
-# Plot for interacting drugs by classes -----
+## Plot for interacting drugs by classes -----
 # Interacting drugs count per substance
 Drug_inter_count <- Drug[role_cod == "I" & !is.na(substance), .N, by= .(substance)][order(-N)]
 atc_inter <- ATC[substance %in% Drug_inter_count$substance]
@@ -468,27 +455,6 @@ atc_inter_drug_c1 <- atc_inter_drug %>%
   summarise(N = sum(N, na.rm = TRUE), .groups = "drop") %>%
   filter(!is.na(Class1)) %>%
   arrange(desc(N))
-
-pastel_palette <- c(
-  "#E3F2FD", "#D0E6FB", "#BBDAF8", "#A6CEF4",
-  "#90C2F0", "#7BB7EC", "#66ABE8", "#529FE4",
-  "#D7F1FA", "#C3E9F7", "#AFE1F4", "#9BD9F0",
-  "#87D1ED", "#73C9E9",
-  "#E0F7FA", "#CCF1F5", "#B8EBF0", "#A4E5EB",
-  "#90DFE6", "#7CD9E1",
-  "#E8F5E9", "#D6ECD7", "#C5E3C6", "#B3DAB5",
-  "#A2D1A4", "#90C893", "#7FBF82", "#6DB671",
-  "#FFF8E1", "#FFF1CC", "#FFEAB7", "#FFE3A3",
-  "#FFDC8E", "#FFD57A",
-  "#FFEBD6", "#FFE0C2", "#FFD5AE", "#FFC899",
-  "#FFBC85", "#FFAF70",
-  "#FCE4EC", "#F8D1E0", "#F4BED4", "#F0ABC8", "#EC98BC",
-  "#F3E5F5", "#E5CEF0", "#D7B8EB",
-  "#ECEFF1", "#D6DCE0"
-)
-
-pastel_palette0 <- c( "#A6CEF4", "#529FE4", "#9BD9F0", "#A4E5EB", "#B3DAB5", "#6DB671", "#ECEFF1",
-                     "#FFE3A3", "#FFC899", "#FFAF70", "#FCE4EC",  "#EC98BC", "#D7B8EB", "#D6DCE0")
 
 p0 <- ggplot(atc_inter_drug_c1, aes(x = reorder(Class1, -N), y = N)) +
   geom_col(linewidth = 0.15, fill = pastel_palette0, colour = "black") +
@@ -743,17 +709,8 @@ ggsave("results/plots/plot5.tiff", plot = p1, width = 12, height = 8, units = "i
 ggsave("results/plots/plot6.tiff", plot = p2, width = 12, height = 8, units = "in", dpi = 1000, compression = "lzw")
 ggsave("results/plots/plot7.tiff", plot = p3, width = 12, height = 8, units = "in", dpi = 1000, compression = "lzw")
 
-# Plot trend for most reported interacting drugs -----
+## Plot trend for most reported interacting drugs -----
 int_data <- read_excel("results/tables/rankings/Most_reported_interacting_drugs.xlsx")
-years_ <- function(path = NA) {
-  d <- read_excel(path)
-  d <- t(d)
-  colnames(d) <- d[1,]
-  d <- as.data.frame(d)[-c(1,3), (ncol(d)-15):ncol(d)]
-  d <- as.data.frame(t(d))
-  colnames(d) <- "N"
-  return(d)
-}
 data_war <- years_("results/tables/univariate/Descriptive_warfarin.xlsx")
 data_tac <- years_("results/tables/univariate/Descriptive_tacrolimus.xlsx")
 data_ace <- years_("results/tables/univariate/Descriptive_acetylsalicylic_acid.xlsx")
@@ -828,19 +785,8 @@ ggsave("results/plots/plot_years.tiff", plot = py, width = 12, height = 8, units
 #####
 
 # Statistical analyses -----
-# Chisq. test ----------------------
+## Chisq. test ----------------------
 descriptive(pids_non_inter, file_name = "results/Descriptive_all_data_non_inter.xlsx")
-
-clean_desc <- function(path){
-  read_excel(path) %>%
-    select(`**Characteristic**`, N_cases) %>%
-    mutate(N_cases = as.numeric(gsub(",", "", N_cases))) %>%
-    pivot_wider(
-      names_from = `**Characteristic**`,
-      values_from = N_cases
-    ) %>%
-    select(-c(Unknown, N))
-}
 
 files <- c(
   int = "results/tables/univariate/Descriptive_all_data_inter.xlsx",
@@ -943,41 +889,6 @@ tab_pvals$signif <- cut(tab_pvals$p_value,
                         breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
                         labels = c("***", "**", "*", "ns"))
 # Plots
-plot_residuals <- function(resid_mat, title) {
-  df_resid <- as.data.frame(resid_mat)
-  df_resid$Group <- rownames(df_resid)
-  
-  df_long <- df_resid |>
-    pivot_longer(
-      cols      = -Group,
-      names_to  = "Category",
-      values_to = "Residual"
-    )
-  
-  ggplot(df_long, aes(x = Category, y = Group, fill = Residual)) +
-    geom_tile(, colour = "black") +
-    geom_text(aes(label = round(Residual, 1))) +
-    scale_fill_gradient2(
-      midpoint = 0,
-      low = "#BBDAF8",
-      mid = "#FFFFFF",
-      high = "#F4BED4",
-      limits = c(min(df_long$Residual), max(df_long$Residual))) +
-    labs(
-      title = title,
-      x = NULL,
-      y = NULL,
-      fill = "Std. residual") +
-    theme_void() +
-    theme(
-      axis.title.y  = element_text(size = 13, face = "bold", angle = 90),
-      axis.title.x  = element_text(size = 13, face = "bold"),
-      axis.text   = element_text(size = 13, face = "bold"),
-      axis.text.x = element_text(size = 13, face = "bold", angle = 45, hjust = 1, vjust = 1),
-      axis.text.y = element_text(size = 13, face = "bold", angle = 45, hjust = 1),
-      plot.title  = element_text(size = 13, face = "bold"))
-  
-}
 p_chisq <- plot_residuals(test_sex$residuals, "Sex") + 
   plot_residuals(test_age$residuals, "Age") +
   plot_residuals(test_out$residuals, "Outcome") +
@@ -988,13 +899,6 @@ ggsave("results/plots/plot_chisq.tiff", plot = p_chisq, width = 17, height = 13,
 
 
 # Cramer's V of imbalance
-cramers_v <- function(tab) {
-  chi       <- suppressWarnings(chisq.test(tab, correct = FALSE))
-  N         <- sum(tab)
-  k         <- min(nrow(tab), ncol(tab))
-  V         <- sqrt(chi$statistic / (N * (k - 1)))
-  as.numeric(V)
-}
 cramers_v_sex      <- cramers_v(tab_sex)
 cramers_v_age      <- cramers_v(tab_age)
 cramers_v_outcome  <- cramers_v(tab_out)
@@ -1009,26 +913,11 @@ write.xlsx(final_tab, file = "results/chisq_test.xlsx")
 
 # save tables
 wb <- createWorkbook()
-add_chi_sheet <- function(wb, sheet_name, test_object, table_object) {
-  addWorksheet(wb, sheet_name)
-  writeData(wb, sheet_name, "Observed counts:", startRow = 1, startCol = 1)
-  writeData(wb, sheet_name, as.data.frame.matrix(table_object), startRow = 2, startCol = 1)
-  
-  writeData(wb, sheet_name, "Expected counts:", startRow = 5 + nrow(table_object), startCol = 1)
-  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$expected, 2)), 
-            startRow = 6 + nrow(table_object), startCol = 1)
-  
-  writeData(wb, sheet_name, "Standardized residuals:", startRow = 9 + 2*nrow(table_object), startCol = 1)
-  writeData(wb, sheet_name, as.data.frame.matrix(round(test_object$residuals, 2)), 
-            startRow = 10 + 2*nrow(table_object), startCol = 1)
-  
-  writeData(wb, sheet_name, paste("p-value:", test_object$p.value), 
-            startRow = 12 + 3*nrow(table_object), startCol = 1)
-}
 add_chi_sheet(wb, "Sex", test_sex, t(tab_sex))
 add_chi_sheet(wb, "Age", test_age, t(tab_age))
 add_chi_sheet(wb, "Outcome", test_out, t(tab_out))
 add_chi_sheet(wb, "Continent", test_con, t(tab_con))
 saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
 
+#####
 

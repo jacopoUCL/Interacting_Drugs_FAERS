@@ -931,7 +931,6 @@ saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
 Reac_inter_count <- Reac[primaryid %in% pids_inter & !is.na(pt), .N, by= .(pt)][order(-N)]
 Reac_inter_count <- Reac_inter_count[1:10,]
 
-
 # Most reported ADRs for most reported interacting drugs --------------------------
 react_count_1 <- as.data.frame(Reac[primaryid %in% pids_1_inter & !is.na(pt), .N, by = .(pt)][order(-N)][1:10,])
 react_count_2 <- as.data.frame(Reac[primaryid %in% pids_2_inter & !is.na(pt), .N, by = .(pt)][order(-N)][1:10,])
