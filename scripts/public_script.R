@@ -46,12 +46,14 @@ Ther <- Ther[primaryid %in% Demo$primaryid]
 #####
 
 # Descriptive analyses -----
-## Selection of reports with at least one interacting drug ----------------------
+## Selection of reports ----------------------
 pids_inter <- unique(Drug[role_cod == "I"]$primaryid) # 95.947
 pids_susp <- unique(Drug[role_cod %in% c("SS", "PS")]$primaryid) # 14.738.725
 pids_conc <- unique(Drug[role_cod == "C"]$primaryid) # 5.122.564
 pids_non_inter <- unique(Drug[role_cod != "I"]$primaryid) # 14.739.289
-subs_inter <- unique(Drug[role_cod != "I"]$substance) # 6317
+subs_inter <- unique(Drug[role_cod == "I"]$substance) # 6359
+subs_non_inter <- unique(Drug[role_cod != "I"]$substance) # 6359
+
 ## NAs analysis ------
 # int
 Demo_int <- copy(Demo)[primaryid %in% pids_inter]
