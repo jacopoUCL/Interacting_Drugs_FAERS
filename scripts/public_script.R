@@ -390,7 +390,7 @@ p1 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
             hjust = 0, size = 3, color = "black") +
   labs(x = "Number of drugs (S (PS or SS) or I or C)",
        y = "Number of reports (pids)", fill = "Drug role") +
-  scale_x_continuous(breaks = 0:25, limits = c(0, 25),
+  scale_x_continuous(breaks = 2:23, limits = c(1, 23),
                      expand = expansion(mult = c(0, 0.02))) +
   scale_y_continuous(breaks = seq(0, y_top_2, by = step_guess),
                      limits = c(0, y_top_2 + step_guess * 0.25)) +
@@ -408,22 +408,23 @@ p1 <- ggplot(bars_2, aes(x = total_drugs, y = count, fill = role_cod)) +
             inherit.aes = FALSE) +
   theme_void() +
   theme(axis.title.y  = element_text(size = 10, face = "bold", angle = 90),
-        axis.title.x  = element_text(size = 10, face = "bold"),
         axis.text   = element_text(size = 10, face = "bold"),
-        axis.text.x = element_text(size = 10, face = "bold", angle = 45, hjust = 1, vjust = 1),
         axis.text.y = element_text(size = 10, face = "bold", angle = 45, hjust = 1.5),
-        plot.title  = element_text(size = 10, face = "bold"))
+        plot.title  = element_text(size = 10, face = "bold"), 
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), 
+        axis.title.x = element_blank())
 
 ## Plot only roles trend per numbers of reported drugs
 p2 <- ggplot(bars_2, aes(x = total_drugs, y = perc, 
                          group = role_cod, color = role_cod)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3) +
-  scale_x_continuous(breaks = 1:35, limits = c(1, 35),
+  scale_x_continuous(breaks = 2:23, limits = c(1, 23),
                      expand = expansion(mult = c(0, 0.02))) +
   scale_y_continuous(breaks = seq(0, 60, by = 5),
                      limits = c(0, 60)) +
-  labs(x = "Number of drugs - S (PS or SS) or I or C -",
+  labs(x = "Number of coreported drugs",
        y = "% by drug role", color = "Drug role") +
   scale_color_manual(values = c("I" = "#BBDAF8",
                                 "S" = "#90C893", 
@@ -440,7 +441,7 @@ p1 / p2 + plot_layout(heights = c(1, 1.2)) +
   plot_annotation(title = "Reports by number of reported drugs and roles", 
                   subtitle = "(1986-2024, Reports with at least one interacting drug (I))")
 
-ggsave("results/plots/plot_count.tiff", plot = p2 / p3, width = 14, height = 10, units = "in", dpi = 1000, compression = "lzw")
+ggsave("results/plots/plot_count.tiff", plot = p1 / p2, width = 14, height = 10, units = "in", dpi = 1000, compression = "lzw")
 
 ## Plot for interacting drugs by classes -----
 # Interacting drugs count per substance
