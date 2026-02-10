@@ -53,35 +53,38 @@ plot_residuals <- function(resid_mat, title) {
   df_resid$Group <- rownames(df_resid)
   
   df_long <- df_resid |>
-    pivot_longer(
-      cols      = -Group,
+    dplyr::mutate(dplyr::across(where(is.factor), as.character)) |>
+    tidyr::pivot_longer(
+      cols      = where(is.numeric),   # <-- only numeric columns become Residual
       names_to  = "Category",
       values_to = "Residual"
     )
   
-  ggplot(df_long, aes(x = Category, y = Group, fill = Residual)) +
-    geom_tile(, colour = "black") +
-    geom_text(aes(label = round(Residual, 1))) +
-    scale_fill_gradient2(
+  ggplot2::ggplot(df_long, ggplot2::aes(x = Category, y = Group, fill = Residual)) +
+    ggplot2::geom_tile(colour = "black") +
+    ggplot2::geom_text(ggplot2::aes(label = round(Residual, 1))) +
+    ggplot2::scale_fill_gradient2(
       midpoint = 0,
       low = "#BBDAF8",
       mid = "#FFFFFF",
-      high = "#F4BED4",
-      limits = c(min(df_long$Residual), max(df_long$Residual))) +
-    labs(
+      high = "#FFC899",
+      limits = range(df_long$Residual, na.rm = TRUE)
+    ) +
+    ggplot2::labs(
       title = title,
       x = NULL,
       y = NULL,
-      fill = "Std. residual") +
-    theme_void() +
-    theme(
-      axis.title.y  = element_text(size = 13, face = "bold", angle = 90),
-      axis.title.x  = element_text(size = 13, face = "bold"),
-      axis.text   = element_text(size = 13, face = "bold"),
-      axis.text.x = element_text(size = 13, face = "bold", angle = 45, hjust = 1, vjust = 1),
-      axis.text.y = element_text(size = 13, face = "bold", angle = 45, hjust = 1),
-      plot.title  = element_text(size = 13, face = "bold"))
-  
+      fill = "Std. residual"
+    ) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      axis.title.y  = ggplot2::element_text(size = 13, face = "bold", angle = 90),
+      axis.title.x  = ggplot2::element_text(size = 13, face = "bold"),
+      axis.text     = ggplot2::element_text(size = 13, face = "bold"),
+      axis.text.x   = ggplot2::element_text(size = 13, face = "bold", angle = 45, hjust = 1, vjust = 1),
+      axis.text.y   = ggplot2::element_text(size = 13, face = "bold", angle = 45, hjust = 1),
+      plot.title    = ggplot2::element_text(size = 13, face = "bold")
+    )
 }
 
 cramers_v <- function(tab) {

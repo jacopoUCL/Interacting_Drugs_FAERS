@@ -803,6 +803,7 @@ dfs$non_int <- dfs$non_int[,c(1:35, 283:289)]
 # sex 
 tab_sex <- rbind(Int   = c(Male = as.numeric(dfs$int$Male[1]),   Female = as.numeric(dfs$int$Female[1])),
                  Non_int = c(Male = as.numeric(dfs$non_int$Male[1]), Female = as.numeric(dfs$non_int$Female[1])))
+
 test_sex <- chisq.test(tab_sex)
 test_sex$residuals
 test_sex$p.value
@@ -884,7 +885,7 @@ test_con$residuals
 test_con$p.value
 
 # summary
-tab_pvals <- data.frame(Variable = c("Sex", "Age", "Outcome", "Continent", ),
+tab_pvals <- data.frame(Variable = c("Sex", "Age", "Outcome", "Continent"),
                         p_value  = c(test_sex$p.value, test_age$p.value,
                                      test_out$p.value, test_con$p.value))
 tab_pvals$signif <- cut(tab_pvals$p_value,
@@ -922,4 +923,3 @@ add_chi_sheet(wb, "Continent", test_con, t(tab_con))
 saveWorkbook(wb, "results/chi_tables.xlsx", overwrite = TRUE)
 
 #####
-
