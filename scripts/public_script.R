@@ -803,7 +803,6 @@ dfs$non_int <- dfs$non_int[,c(1:35, 283:289)]
 # sex 
 tab_sex <- rbind(Int   = c(Male = as.numeric(dfs$int$Male[1]),   Female = as.numeric(dfs$int$Female[1])),
                  Non_int = c(Male = as.numeric(dfs$non_int$Male[1]), Female = as.numeric(dfs$non_int$Female[1])))
-tab_sex <- as.data.frame.matrix(t)
 test_sex <- chisq.test(tab_sex)
 test_sex$residuals
 test_sex$p.value
